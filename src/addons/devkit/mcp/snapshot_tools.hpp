@@ -291,11 +291,20 @@ inline ToolResult HandleListShadersTool(const json& arguments, const ToolContext
   }
 
   auto text = std::format(
-      "Returned {} shader(s) from device #{} (offset {} of {}).",
+      "Returned {} shader(s) from device #{} (offset {} of {}).\n",
       paged_shaders.size(),
       device_index,
       clamped_offset,
       total_count);
+  for (const auto& shader : paged_shaders) {
+    text += std::format(
+        "  {} stage={} source={} entry={}{}\n",
+        shader.hash,
+        shader.stage,
+        shader.source,
+        shader.entrypoint,
+        shader.has_disk_shader ? " [disk]" : "");
+  }
   return ToolResult{
       .text = text,
       .structured_content = result,
@@ -394,6 +403,23 @@ inline ToolResult HandleListDrawsTool(const json& arguments, const ToolContext& 
       clamped_offset,
       total_filtered_draws,
       total_draws);
+  for (const auto& draw : paged_draws) {
+    text += std::format(
+        "  draw#{} {} shaders=[{}] rt={} srv={} uav={}\n",
+        draw.index,
+        draw.method,
+        [&] {
+          std::string hashes;
+          for (const auto& hash : draw.shader_hashes) {
+            if (!hashes.empty()) hashes += ",";
+            hashes += hash;
+          }
+          return hashes;
+        }(),
+        draw.render_target_count,
+        draw.srv_count,
+        draw.uav_count);
+  }
   return ToolResult{
       .text = text,
       .structured_content = result,
@@ -411,12 +437,51 @@ inline ToolResult HandleGetDrawTool(const json& arguments, const ToolContext& co
   result["deviceIndex"] = device_index;
 
   auto text = std::format(
-      "Returned draw #{} from device #{} with {} render target(s), {} SRV bind(s), and {} UAV bind(s).",
+      "Draw #{} on device #{}: method={} shaders=[{}] rt={} srv={} uav={} cbv={}",
       draw_index,
       device_index,
+      draw.method,
+      [&] {
+        std::string hashes;
+        for (const auto& hash : draw.shader_hashes) {
+          if (!hashes.empty()) hashes += ",";
+          hashes += hash;
+        }
+        return hashes;
+      }(),
       draw.render_target_count,
       draw.srv_count,
-      draw.uav_count);
+      draw.uav_count,
+      draw.constant_count);
+  if (draw.render_targets.has_value()) {
+    for (const auto& rt : draw.render_targets.value()) {
+      text += std::format(
+          "\n  RT[{}]: handle={} format={} type={}",
+          rt.rtv_index,
+          rt.resource_view.resource_view_handle,
+          rt.resource_view.view.format,
+          rt.resource_view.view.type);
+      if (rt.resource_view.resource.width.has_value()) {
+        text += std::format(" {}x{}", rt.resource_view.resource.width.value(), rt.resource_view.resource.height.value_or(0u));
+      }
+    }
+  }
+  if (draw.pipelines.has_value()) {
+    for (const auto& pipeline : draw.pipelines.value()) {
+      text += std::format(
+          "\n  Pipeline: handle={} stage={} shaders=[{}]",
+          pipeline.pipeline_handle,
+          pipeline.stage,
+          [&] {
+            std::string hashes;
+            for (const auto& hash : pipeline.shader_hashes) {
+              if (!hashes.empty()) hashes += ",";
+              hashes += hash;
+            }
+            return hashes;
+          }());
+    }
+  }
   return ToolResult{
       .text = text,
       .structured_content = result,
