@@ -884,7 +884,63 @@ static bool OnCreatePipelineLayout(
           });
     }
 
-    if (slots > remaining_dword_count) {
+    // NOTE: Has to align binding, just complicates stuff.
+    // if (force_align_constant_buffers_to_16) {
+    //   vk_aligned_pc_count = ((vk_aligned_pc_count + 3u) & ~3u);
+    //   vk_aligned_offset = ((vk_aligned_offset + 3u) & ~3u);
+    //   aligned_dword_count = ((aligned_dword_count + 3u) & ~3u);
+    // }
+    const uint32_t vk_new_local_pc_count = vk_aligned_pc_count + shader_injection_size;
+    const uint32_t vk_new_total_pc_count = aligned_dword_count + shader_injection_size;
+    constexpr uint32_t vk_max_pc_count = 64u;  // Vulkan maxPushConstantsSize / 4 (256 bytes is spec common limit)
+
+    if (vk_new_total_pc_count > vk_max_pc_count) {
+      // Expansion would exceed maxPushConstantsSize (256 bytes).
+      // Since replacement shaders don't use the engine's original push constants,
+      // replace the range with just our injection data at offset 0.
+      std::stringstream s;
+      s << "mods::shader::OnCreatePipelineLayout((Vulkan)";
+      s << " shader injection would exceed maxPushConstantsSize";
+      s << ", original count: " << dword_count;
+      s << ", would-be count: " << vk_new_total_pc_count;
+      s << ", falling back to replacement at offset 0 with count: " << shader_injection_size;
+      s << ")";
+      reshade::log::message(reshade::log::level::warning, s.str().c_str());
+      pc.push_constants.binding = 0;
+      pc.push_constants.count = shader_injection_size;
+    } else {
+      // TODO(Ritsu): If PC is in the middle, it'll interfere with later PCs offsets (rare)
+      pc.push_constants.count = vk_new_local_pc_count;
+    }
+    // pc.push_constants.visibility = utils::bitwise::SetFlag(pc.push_constants.visibility, pc_allowed_stages);
+
+    std::stringstream s;
+    s << "mods::shader::OnCreatePipelineLayout((Vulkan)";
+    s << " at root_index " << vk_expand_pc_index;
+    s << " with constants size " << aligned_dword_count;
+    s << " with offset " << pc.push_constants.binding;
+    s << " creating new size of " << (pc.push_constants.binding + pc.push_constants.count);
+    s << ", final count: " << pc.push_constants.count;
+    s << " )";
+    reshade::log::message(reshade::log::level::info, s.str().c_str());
+    return true;
+  };
+
+  auto append_pc = [&]() {
+    // Fill in extra param
+    const uint32_t slots = shader_injection_size;
+    const uint32_t max_count = 64u - dword_count;
+
+    new_params[injection_index] = reshade::api::pipeline_layout_param(
+        reshade::api::constant_range{
+            .binding = is_vulkan ? dword_count : 0,
+            .dx_register_index = cbv_index,
+            .dx_register_space = data->expected_constant_buffer_space,
+            .count = (slots > max_count) ? max_count : slots,
+            .visibility = pc_unused_stages,
+        });
+
+    if (slots > max_count) {
       std::stringstream s;
       s << "mods::shader::OnCreatePipelineLayout(";
       s << "shader injection oversized: ";
