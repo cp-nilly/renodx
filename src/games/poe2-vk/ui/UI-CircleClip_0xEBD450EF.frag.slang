@@ -1,7 +1,7 @@
 #include "../common.hlsl"
 
-[[vk::binding(0, 4)]]
-cbuffer type_ctime_cb : register(b0, space4)
+[[vk::binding(0, 9)]]
+cbuffer type_ctime_cb : register(b0, space9)
 {
     float ctime_cb_sdr_scale : packoffset(c0);
     float ctime_cb_clip_radius : packoffset(c0.y);
@@ -10,8 +10,8 @@ cbuffer type_ctime_cb : register(b0, space4)
 [[vk::binding(12, 0)]]
 SamplerState SamplerLinearWrapOffsetNoBias : register(s12, space0);
 
-[[vk::binding(20, 2)]]
-Texture2D<float4> tex : register(t20, space2);
+[[vk::binding(0, 5)]]
+Texture2D<float4> tex : register(t0, space5);
 
 static float2 in_var_TEXCOORD0;
 static float4 in_var_COLOR0;
