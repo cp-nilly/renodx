@@ -1,7 +1,7 @@
 #version 450
 #extension GL_EXT_spirv_intrinsics : require
 
-layout(set = 4, binding = 0, std140) uniform type_cminimap_visibility_pixel_cb
+layout(set = 9, binding = 0, std140) uniform type_cminimap_visibility_pixel_cb
 {
     vec4 explored_tile;
     vec4 tile_map_size;
@@ -15,8 +15,8 @@ layout(set = 4, binding = 0, std140) uniform type_cminimap_visibility_pixel_cb
 } cminimap_visibility_pixel_cb;
 
 layout(set = 0, binding = 1) uniform sampler SamplerLinearClamp;
-layout(set = 2, binding = 17) uniform texture2D curr_visibility_sampler;
-layout(set = 2, binding = 18) uniform texture2D walkability_sampler;
+layout(set = 5, binding = 0) uniform texture2D curr_visibility_sampler;
+layout(set = 5, binding = 1) uniform texture2D walkability_sampler;
 
 layout(location = 0) out vec4 out_var_SV_TARGET;
 

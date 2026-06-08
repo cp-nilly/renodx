@@ -1,7 +1,7 @@
 #version 450
 #extension GL_EXT_spirv_intrinsics : require
 
-layout(set = 4, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
+layout(set = 9, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
 {
     vec4 x_basis;
     vec4 y_basis;
@@ -26,10 +26,10 @@ layout(set = 4, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
 
 layout(set = 0, binding = 12) uniform sampler SamplerLinearWrapOffsetNoBias;
 layout(set = 0, binding = 13) uniform sampler SamplerLinearClampOffsetNoBias;
-layout(set = 2, binding = 19) uniform texture2D walkability_sampler;
-layout(set = 2, binding = 20) uniform texture2D visibility_sampler;
-layout(set = 2, binding = 21) uniform texture2D decay_map_sampler;
-layout(set = 2, binding = 22) uniform texture2D crack_sampler;
+layout(set = 5, binding = 0) uniform texture2D walkability_sampler;
+layout(set = 5, binding = 1) uniform texture2D visibility_sampler;
+layout(set = 5, binding = 2) uniform texture2D decay_map_sampler;
+layout(set = 5, binding = 3) uniform texture2D crack_sampler;
 
 layout(location = 1) in vec4 in_var_TEXCOORD2;
 layout(location = 2) in float in_var_TEXCOORD3;

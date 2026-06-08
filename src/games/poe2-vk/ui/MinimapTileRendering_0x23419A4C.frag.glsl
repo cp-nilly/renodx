@@ -2,7 +2,7 @@
 
 vec4 _44;
 
-layout(set = 4, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
+layout(set = 9, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
 {
     vec4 x_basis;
     vec4 y_basis;
@@ -26,7 +26,7 @@ layout(set = 4, binding = 0, std140) uniform type_cminimap_vertex_transform_cb
 } cminimap_vertex_transform_cb;
 
 layout(set = 0, binding = 13) uniform sampler SamplerLinearClampOffsetNoBias;
-layout(set = 2, binding = 19) uniform texture2D tilemap_sampler;
+layout(set = 5, binding = 0) uniform texture2D tilemap_sampler;
 
 layout(location = 0) in vec2 in_var_TEXCOORD1;
 layout(location = 2) in float in_var_TEXCOORD3;
