@@ -2,7 +2,7 @@
  * Copyright (C) 2024 Carlos Lopez
  * SPDX-License-Identifier: MIT
  */
-
+#define RENODX_SPIRV_CROSS_FLAGS "--hlsl --shader-model 60"
 #define ImTextureID ImU64
 
 #include <d3d11.h>
