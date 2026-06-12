@@ -239,7 +239,7 @@ cbuffer type_cpipeline_cb : register(b0, space10)
     uint cpipeline_cb_frame_material_id : packoffset(c11);
 };
 
-[[vk::binding(0, 1)]]
+[[vk::binding(0, 11)]]
 cbuffer type_cobject_cb : register(b0, space11)
 {
     uint cobject_cb_instance_count : packoffset(c0);
