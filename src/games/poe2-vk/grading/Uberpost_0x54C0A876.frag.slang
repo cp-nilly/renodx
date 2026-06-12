@@ -170,14 +170,6 @@ void frag_main()
     float _380 = _200.x;
     float3 _sceneColor = _377.xyz * cpost_processing_desc_cb_original_intensity;
 
-    // RenoDX: Apply colour grading BEFORE bloom
-    if (RENODX_TONE_MAP_TYPE > 0.f) {
-        UserGradingConfig _pre_cg = CreateColorGradeConfig();
-        float _pre_y = renodx::color::y::from::BT709(_sceneColor);
-        _sceneColor = ApplyExposureContrastFlareHighlightsShadowsByLuminance(
-            _sceneColor, _pre_y, _pre_cg);
-    }
-
     float3 _bloomColor = bloom_sampler.SampleLevel(SamplerLinearClampNoBias, float4(_380, _200.y, 0.0f, 0.0f).xy, 0.0f).xyz;
 
     // Musa's bloom scaling
@@ -218,19 +210,24 @@ void frag_main()
     _460 = float4(lerp(_424.xyz, _460.xyz, saturate(RENODX_COLOR_GRADE_STRENGTH)), _460.w);
 
     if (RENODX_TONE_MAP_TYPE > 0.f) {
-
+  
         float in_max = max(1.0f, max(_460.x, max(_460.y, _460.z)));
         float3 normalized = _460.xyz / in_max;
-        float3 graded_color = renodx::color::srgb::DecodeSafe(normalized) * in_max;
+        float3 linear_color = renodx::color::srgb::DecodeSafe(normalized) * in_max;
+
+        // User grading in linear space
+        UserGradingConfig _pre_cg = CreateColorGradeConfig();
+        float _pre_y = renodx::color::y::from::BT709(linear_color);
+        linear_color = ApplyExposureContrastFlareHighlightsShadowsByLuminance(
+            linear_color, _pre_y, _pre_cg);
 
         LUTSampleResult lut_result;
-        lut_result.graded = graded_color;
-        lut_result.y = renodx::color::y::from::BT709(graded_color);
-        lut_result.graded_ap1 = renodx::color::ap1::from::BT709(graded_color);
+        lut_result.graded = linear_color;
+        lut_result.y = renodx::color::y::from::BT709(linear_color);
+        lut_result.graded_ap1 = renodx::color::ap1::from::BT709(linear_color);
         lut_result.pre_lut_linear = _396;
 
-        float3 hdr_color;
-        hdr_color = PSYCHOGRADE(lut_result);
+        float3 hdr_color = PSYCHOGRADE(lut_result);
 
         float out_max = max(1.0f, max(hdr_color.r, max(hdr_color.g, hdr_color.b)));
         hdr_color = renodx::color::srgb::EncodeSafe(hdr_color / out_max) * out_max;
