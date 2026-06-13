@@ -130,7 +130,7 @@ float4 ProcessPostProcessing(float4 fragCoord)
     case 1:
         float4 worldColor = world_shadow_sampler.SampleLevel(SamplerLinearClamp, clampedUV, 0.0f);
         float uiAlpha = sourceColor.a;
-        float3 uiColorUnmultiplied = sourceColor.rgb / max(uiAlpha, 0.0001f); // Prevent division-by-zero on completely transparent pixels
+        float3 uiColorUnmultiplied = sourceColor.rgb / (1.45f * max(uiAlpha, 0.0001f)); // Prevent division-by-zero, undo sdr scaling (assumes ui brighness 0.0 in settings)
         float4 uiLinear = ApplyUIProcessing(uiColorUnmultiplied, uiAlpha);
         float3 correctedComposite = worldColor.rgb * (1.0f - uiLinear.a) + (uiLinear.rgb * uiLinear.a);
         finalColor.rgb = ApplyPQOETF(correctedComposite);
