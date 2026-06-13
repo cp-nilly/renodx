@@ -28,6 +28,8 @@ renodx::mods::shader::CustomShaders custom_shaders = {
   CustomShaderEntry(0xC8F8D2FD), // - BloomBlur -
   CustomShaderEntry(0x724558AC), // - BloomDownscale -
   CustomShaderEntry(0x4DD5605C), // - VolumetricFog -
+  CustomShaderEntry(0x287A8970), // - UI DistortionEdge -
+  CustomShaderEntry(0x0C909150), // - UI Main -
   { 0xDBD71D64, { // - output - inject shader with saved frame data
     .crc32 = 0xDBD71D64,
     .code = __0xDBD71D64,
