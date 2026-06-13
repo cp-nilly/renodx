@@ -129,33 +129,13 @@ float4 ProcessPostProcessing(float4 fragCoord)
 
     case 1:
         float4 worldColor = world_shadow_sampler.SampleLevel(SamplerLinearClamp, clampedUV, 0.0f);
-        float3 delta = abs(sourceColor.rgb - worldColor.rgb);
-        float diff = max(delta.r, max(delta.g, delta.b));
-
-        // 1. Soften the transition threshold to prevent harsh binary edges.
-        // Raising the upper bound (e.g., to 0.03f or 0.05f) allows a gentler gradient.
-        float uiMask = smoothstep(0.005f, 0.04f, diff);
-
-        // 2. Stabilize the alpha value used for division.
-        // Raising this minimum value (e.g., from 0.001f to 0.02f) prevents the
-        // UI color reconstruction from blowing up on semi-transparent edges.
-        float safeA = max(sourceColor.a, 0.02f);
-
-        // Reconstruct the UI gamma using the stabilized alpha
-        float3 uiGamma = (sourceColor.rgb - worldColor.rgb * (1.0f - sourceColor.a)) / safeA;
-        float3 uiLinear = ApplyUIProcessing(uiGamma, sourceColor.a).rgb;
-
-        // 3. Smooth out low-alpha transitions.
-        // Fade the mask slightly when alpha is extremely close to zero,
-        // as we cannot reliably reconstruct UI colors at near-zero opacities.
-        uiMask *= smoothstep(0.0f, 0.02f, sourceColor.a);
-
-        float3 correctedComposite =
-        worldColor.rgb * (1.0f - sourceColor.a) +
-        uiLinear * sourceColor.a;
-
-        finalColor.rgb = ApplyPQOETF(lerp(sourceColor.rgb, correctedComposite, uiMask));
+        float uiAlpha = sourceColor.a;
+        float3 uiColorUnmultiplied = sourceColor.rgb / max(uiAlpha, 0.0001f); // Prevent division-by-zero on completely transparent pixels
+        float4 uiLinear = ApplyUIProcessing(uiColorUnmultiplied, uiAlpha);
+        float3 correctedComposite = worldColor.rgb * (1.0f - uiLinear.a) + (uiLinear.rgb * uiLinear.a);
+        finalColor.rgb = ApplyPQOETF(correctedComposite);
         break;
+
     case 2:
     case 3:
         // Pass-through / Bypass (Keeps colors in standard linear format)
