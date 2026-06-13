@@ -45,6 +45,7 @@ renodx::mods::shader::CustomShaders custom_shaders = {
     .code = __0x54C0A876,
     .on_drawn = [](reshade::api::command_list* cmd_list) {
       frame_capture::CopyFrame(cmd_list);
+      frame_capture::ClearFrame(cmd_list);
       return;
     }}
   },
@@ -556,13 +557,13 @@ void OnInitDevice(reshade::api::device* device) {
           .view_upgrades = view_upgrades,
           .usage_include = reshade::api::resource_usage::render_target,
       },
-      //{
-      //    .old_format = reshade::api::format::r11g11b10_float,
-      //    .new_format = target_format,
-      //    .ignore_size = true,
-      //    .view_upgrades = view_upgrades,
-      //    .usage_include = reshade::api::resource_usage::render_target,
-      //},
+      {
+          .old_format = reshade::api::format::r11g11b10_float,
+          .new_format = target_format,
+          .ignore_size = true,
+          .view_upgrades = view_upgrades,
+          .usage_include = reshade::api::resource_usage::render_target,
+      },
   };
 
   renodx::utils::resource::upgrade::SetUpgradeInfos(device, upgrade_infos);

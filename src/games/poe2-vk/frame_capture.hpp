@@ -8,8 +8,9 @@ namespace frame_capture {
 inline reshade::api::resource g_texture_sr = {};
 inline reshade::api::resource_view g_texture_srv = {};
 
-// Thread-local variable to track the active Vulkan render target on any recording thread
+// Thread-local variables to track the active Vulkan render target and its view
 inline thread_local reshade::api::resource g_active_thread_rt = {};
+inline thread_local reshade::api::resource_view g_active_thread_rtv = {};
 
 inline void CopyFrame(reshade::api::command_list* cmd_list) {
   reshade::api::resource src_rt = g_active_thread_rt;
@@ -44,6 +45,29 @@ inline void CopyFrame(reshade::api::command_list* cmd_list) {
       reshade::api::resource_usage::shader_resource);
 }
 
+inline void ClearFrame(reshade::api::command_list* cmd_list) {
+  reshade::api::resource src_rt = g_active_thread_rt;
+  reshade::api::resource_view src_rtv = g_active_thread_rtv;
+  if (src_rt == 0 || src_rtv == 0)
+    return;
+
+  // Transition active render target to render_target state to allow clearing
+  cmd_list->barrier(
+      src_rt,
+      reshade::api::resource_usage::shader_resource,
+      reshade::api::resource_usage::render_target);
+
+  // Clear active frame to transparent black (0, 0, 0, 0)
+  const float clear_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  cmd_list->clear_render_target_view(src_rtv, clear_color);
+
+  // Transition active render target back to shader_resource
+  //cmd_list->barrier(
+  //    src_rt,
+  //    reshade::api::resource_usage::render_target,
+  //    reshade::api::resource_usage::shader_resource);
+}
+
 inline void OnInitSwapchain(reshade::api::swapchain* swapchain) {
   reshade::api::device* device = swapchain->get_device();
   reshade::api::resource backbuffer = swapchain->get_back_buffer(0);
@@ -55,7 +79,7 @@ inline void OnInitSwapchain(reshade::api::swapchain* swapchain) {
   desc.texture.height = backbuffer_desc.texture.height;
   desc.texture.depth_or_layers = 1;
   desc.texture.levels = 1;
-  desc.texture.format = reshade::api::format::r11g11b10_float;
+  desc.texture.format = reshade::api::format::r16g16b16a16_float;
   desc.texture.samples = 1;
   desc.heap = reshade::api::memory_heap::gpu_only;
   desc.usage = reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::shader_resource;
@@ -64,7 +88,7 @@ inline void OnInitSwapchain(reshade::api::swapchain* swapchain) {
     device->create_resource_view(
         g_texture_sr,
         reshade::api::resource_usage::shader_resource,
-        reshade::api::resource_view_desc(reshade::api::format::r11g11b10_float),
+        reshade::api::resource_view_desc(reshade::api::format::r16g16b16a16_float),
         &g_texture_srv);
   }
 }
@@ -82,7 +106,7 @@ inline void OnDestroySwapchain(reshade::api::swapchain* swapchain) {
   }
 }
 
-// Track render target attachments as they are bound in Vulkan render passes
+// Track render target attachments and their views
 inline void OnBeginRenderPass(
     reshade::api::command_list* cmd_list,
     uint32_t count,
@@ -91,6 +115,7 @@ inline void OnBeginRenderPass(
   if (count > 0 && rts[0].view.handle != 0) {
     reshade::api::device* device = cmd_list->get_device();
     g_active_thread_rt = device->get_resource_from_view(rts[0].view);
+    g_active_thread_rtv = rts[0].view;
   }
 }
 
