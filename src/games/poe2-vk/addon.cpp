@@ -19,10 +19,36 @@
 #include "../../utils/resource_upgrade.hpp"
 #include "../../utils/settings.hpp"
 #include "./shared.h"
+#include "./frame_capture.hpp"
 
 namespace {
 
-renodx::mods::shader::CustomShaders custom_shaders = {__ALL_CUSTOM_SHADERS};
+renodx::mods::shader::CustomShaders custom_shaders = {
+  //__ALL_CUSTOM_SHADERS
+  CustomShaderEntry(0xC8F8D2FD), // - BloomBlur -
+  CustomShaderEntry(0x724558AC), // - BloomDownscale -
+  CustomShaderEntry(0x4DD5605C), // - VolumetricFog -
+  { 0xDBD71D64, { // - output - inject shader with saved frame data
+    .crc32 = 0xDBD71D64,
+    .code = __0xDBD71D64,
+    .views = {{
+      .type = reshade::api::descriptor_type::shader_resource_view,
+      .slot = 2,
+      .space = 0, // have to use space that is used but has room? (haven't fully tested). So avoid using same space as source frame.
+      .get_view = [](reshade::api::command_list*) {
+        return frame_capture::g_texture_srv;
+      }
+    }}
+  }},
+  { 0x54C0A876, { // - uberpost - copy frame right after it's rendered
+    .crc32 = 0x54C0A876,
+    .code = __0x54C0A876,
+    .on_drawn = [](reshade::api::command_list* cmd_list) {
+      frame_capture::CopyFrame(cmd_list);
+      return;
+    }}
+  },
+};
 
 ShaderInjectData shader_injection;
 
@@ -530,6 +556,13 @@ void OnInitDevice(reshade::api::device* device) {
           .view_upgrades = view_upgrades,
           .usage_include = reshade::api::resource_usage::render_target,
       },
+      //{
+      //    .old_format = reshade::api::format::r11g11b10_float,
+      //    .new_format = target_format,
+      //    .ignore_size = true,
+      //    .view_upgrades = view_upgrades,
+      //    .usage_include = reshade::api::resource_usage::render_target,
+      //},
   };
 
   renodx::utils::resource::upgrade::SetUpgradeInfos(device, upgrade_infos);
@@ -573,6 +606,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::utils::resource::upgrade::Use(fdw_reason);
       reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);
       reshade::register_event<reshade::addon_event::present>(OnPresent);
+      frame_capture::RegisterEvents();
 
       // Load UI toggle hotkey from saved config
       {
@@ -587,6 +621,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::utils::resource::upgrade::Use(fdw_reason);
       reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
       reshade::unregister_event<reshade::addon_event::present>(OnPresent);
+      frame_capture::UnregisterEvents();
       reshade::unregister_addon(h_module);
       break;
   }
