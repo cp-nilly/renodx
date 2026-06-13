@@ -10,10 +10,11 @@ float InterleavedGradientNoise(float2 pixelCoord) {
 
 // Luminance-based gamma correction that preserves per-channel chrominance (hue).
 float3 ApplyGammaCorrectionByLuminance(float3 color_input) {
-  float y_in = renodx::color::y::from::BT709(color_input);
-  float y_out = renodx::color::correct::Gamma(max(0, y_in));
-  float3 color_output = renodx::color::correct::Luminance(color_input, y_in, y_out);
-  return color_output;
+  //float y_in = renodx::color::y::from::BT709(color_input);
+  //float y_out = renodx::color::correct::Gamma(max(0, y_in));
+  //float3 color_output = renodx::color::correct::Luminance(color_input, y_in, y_out);
+  //return color_output;
+  return renodx::color::correct::GammaSafe(color_input);
 }
 
 // Processes UI shader output: neutralizes vanilla sdr_scale, applies UI gamma

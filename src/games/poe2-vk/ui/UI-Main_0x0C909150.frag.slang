@@ -125,7 +125,7 @@ void frag_main()
           _tonemapped, shader_injection.peak_white_nits / shader_injection.graphics_white_nits, 65.f);
       _tonemapped = renodx::color::bt709::from::BT2020(_tonemapped);
     }
-    out_var_SV_TARGET = float4(_tonemapped, _314.w);//ApplyUIProcessing(_tonemapped, _314.w);
+    out_var_SV_TARGET = float4(_tonemapped * cconstants_cb_sdr_scale, _314.w); // will deal with sdr_scale before output since we not injecting all ui shaders
 }
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
