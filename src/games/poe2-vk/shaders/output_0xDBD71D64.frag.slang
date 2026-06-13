@@ -1,21 +1,31 @@
 #include "../common.hlsl"
 
+// =====================================================================================
+// Constant Buffers & Bindings
+// =====================================================================================
+
 [[vk::binding(0, 9)]]
 cbuffer type_cpost_processing_desc_cb : register(b0, space9)
 {
-    int cpost_processing_desc_cb_viewport_width : packoffset(c0);
-    int cpost_processing_desc_cb_viewport_height : packoffset(c0.y);
-    int cpost_processing_desc_cb_oetf_id : packoffset(c0.z);
+    int cpost_processing_desc_cb_viewport_width               : packoffset(c0);
+    int cpost_processing_desc_cb_viewport_height              : packoffset(c0.y);
+    int cpost_processing_desc_cb_oetf_id                      : packoffset(c0.z);
     float4 cpost_processing_desc_cb_src_frame_to_dynamic_scale : packoffset(c1);
 };
 
 [[vk::binding(1, 0)]]
 SamplerState SamplerLinearClamp : register(s1, space0);
+
 [[vk::binding(0, 5)]]
 Texture2D<float4> source_sampler : register(t0, space5);
 
-static float4 gl_FragCoord;
-static float4 out_var_SV_TARGET;
+// --- Frame Capture Binding ---
+[[vk::binding(2, 0)]]
+Texture2D<float4> world_shadow_sampler : register(t2, space0);
+
+// =====================================================================================
+// Shader Input/Output Structures
+// =====================================================================================
 
 struct SPIRV_Cross_Input
 {
@@ -27,120 +37,152 @@ struct SPIRV_Cross_Output
     float4 out_var_SV_TARGET : SV_Target0;
 };
 
-void frag_main()
+// =====================================================================================
+// OETF Helper Functions (Color Space Conversions)
+// =====================================================================================
+
+/**
+ * Applies the standard sRGB (IEC 61966-2-1) Opto-Electronic Transfer Function.
+ * Converts linear HDR/SDR color values to gamma-encoded values for standard displays.
+ */
+float3 ApplySRGBOETF(float3 linearColor)
 {
-    float4 _87 = source_sampler.SampleLevel(SamplerLinearClamp, float4(min((gl_FragCoord.xy / float2(float(cpost_processing_desc_cb_viewport_width), float(cpost_processing_desc_cb_viewport_height))) * cpost_processing_desc_cb_src_frame_to_dynamic_scale.xy, cpost_processing_desc_cb_src_frame_to_dynamic_scale.zw), 0.0f, 0.0f).xy, 0.0f);
-    float4 _191;
-    if (cpost_processing_desc_cb_oetf_id == 0)
-    {
-        float3 _95 = clamp(_87.xyz, 0.0f.xxx, 1.0f.xxx);
-        float _96 = _95.x;
-        float _105;
-        if (_96 > 0.003130800090730190277099609375f)
-        {
-            _105 = (1.05499994754791259765625f * pow(_96, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-        }
-        else
-        {
-            _105 = 12.9200000762939453125f * _96;
-        }
-        float _106 = _95.y;
-        float _115;
-        if (_106 > 0.003130800090730190277099609375f)
-        {
-            _115 = (1.05499994754791259765625f * pow(_106, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-        }
-        else
-        {
-            _115 = 12.9200000762939453125f * _106;
-        }
-        float _116 = _95.z;
-        float _125;
-        if (_116 > 0.003130800090730190277099609375f)
-        {
-            _125 = (1.05499994754791259765625f * pow(_116, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-        }
-        else
-        {
-            _125 = 12.9200000762939453125f * _116;
-        }
-        float3 _126 = float3(_105, _115, _125);
-        _191 = float4(_126.x, _126.y, _126.z, _87.w);
-    }
-    else
-    {
-        float4 _190;
-        if (cpost_processing_desc_cb_oetf_id == 1)
-        {
-            float3 _136 = pow(clamp(mul(float3x3(float3(0.6274039745330810546875f, 0.329281985759735107421875f, 0.043313600122928619384765625f), float3(0.06909699738025665283203125f, 0.919539988040924072265625f, 0.0113612003624439239501953125f), float3(0.01639159955084323883056640625f, 0.0880132019519805908203125f, 0.895595014095306396484375f)), _87.xyz) * 0.008000000379979610443115234375f, 0.0f.xxx, 1.0f.xxx), 0.1593017578125f.xxx);
-            float3 _142 = pow((0.8359375f.xxx + (_136 * 18.8515625f)) / (1.0f.xxx + (_136 * 18.6875f)), 78.84375f.xxx);
-            _190 = float4(_142.x, _142.y, _142.z, _87.w);
-        }
-        else
-        {
-            float4 _189;
-            if (cpost_processing_desc_cb_oetf_id == 2)
-            {
-                _189 = float4(_87.x, _87.y, _87.z, _87.w);
-            }
-            else
-            {
-                float4 _188;
-                if (cpost_processing_desc_cb_oetf_id == 3)
-                {
-                    _188 = float4(_87.x, _87.y, _87.z, _87.w);
-                }
-                else
-                {
-                    float3 _155 = clamp(_87.xyz, 0.0f.xxx, 1.0f.xxx);
-                    float _156 = _155.x;
-                    float _165;
-                    if (_156 > 0.003130800090730190277099609375f)
-                    {
-                        _165 = (1.05499994754791259765625f * pow(_156, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-                    }
-                    else
-                    {
-                        _165 = 12.9200000762939453125f * _156;
-                    }
-                    float _166 = _155.y;
-                    float _175;
-                    if (_166 > 0.003130800090730190277099609375f)
-                    {
-                        _175 = (1.05499994754791259765625f * pow(_166, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-                    }
-                    else
-                    {
-                        _175 = 12.9200000762939453125f * _166;
-                    }
-                    float _176 = _155.z;
-                    float _185;
-                    if (_176 > 0.003130800090730190277099609375f)
-                    {
-                        _185 = (1.05499994754791259765625f * pow(_176, 0.4166666567325592041015625f)) - 0.054999999701976776123046875f;
-                    }
-                    else
-                    {
-                        _185 = 12.9200000762939453125f * _176;
-                    }
-                    float3 _186 = float3(_165, _175, _185);
-                    _188 = float4(_186.x, _186.y, _186.z, _87.w);
-                }
-                _189 = _188;
-            }
-            _190 = _189;
-        }
-        _191 = _190;
-    }
-    out_var_SV_TARGET = _191;
+    float3 clampedColor = clamp(linearColor, 0.0f.xxx, 1.0f.xxx);
+    float3 srgbColor;
+
+    srgbColor.r = (clampedColor.r > 0.0031308f) ? (1.055f * pow(clampedColor.r, 0.41666667f) - 0.055f) : (12.92f * clampedColor.r);
+    srgbColor.g = (clampedColor.g > 0.0031308f) ? (1.055f * pow(clampedColor.g, 0.41666667f) - 0.055f) : (12.92f * clampedColor.g);
+    srgbColor.b = (clampedColor.b > 0.0031308f) ? (1.055f * pow(clampedColor.b, 0.41666667f) - 0.055f) : (12.92f * clampedColor.b);
+
+    return srgbColor;
 }
+
+/**
+ * Applies the SMPTE ST 2084 (PQ / Perceptual Quantizer) OETF for HDR10 displays.
+ * Includes an initial color space conversion matrix (typically BT.709 to BT.2020 / LMS).
+ */
+float3 ApplyPQOETF(float3 linearColor)
+{
+    // Color space conversion matrix
+    float3x3 colorMatrix = float3x3(
+        float3(0.62740397f, 0.32928198f, 0.04331360f),
+        float3(0.06909699f, 0.91953998f, 0.01136120f),
+        float3(0.01639159f, 0.08801320f, 0.89559501f)
+    );
+    
+    float3 transformedColor = mul(colorMatrix, linearColor);
+    
+    // Normalize luminance mapping (0.008 factor maps peak scene brightness relative to 10k nits PQ range)
+    float3 scaledColor = clamp(transformedColor * 0.008f, 0.0f.xxx, 1.0f.xxx);
+    
+    // PQ Mathematical formulation constants:
+    // m1 = 2610 / 16384 = 0.159301758
+    // m2 = 2523 / 32    = 78.84375
+    // c1 = 3424 / 4096  = 0.8359375
+    // c2 = 2413 / 128   = 18.8515625
+    // c3 = 2392 / 128   = 18.6875
+    float3 powerTerm  = pow(scaledColor, 0.159301758f.xxx);
+    float3 numerator   = 0.8359375f.xxx + (powerTerm * 18.8515625f.xxx);
+    float3 denominator = 1.0f.xxx + (powerTerm * 18.6875f.xxx);
+    
+    return pow(numerator / denominator, 78.84375f.xxx);
+}
+
+// =====================================================================================
+// Fragment Shader Execution
+// =====================================================================================
+
+float4 ProcessPostProcessing(float4 fragCoord)
+{
+    // -------------------------------------------------------------
+    // 1. Texture Coordinate Setup with Dynamic Resolution Scaling
+    // -------------------------------------------------------------
+    float2 viewportSize = float2(
+        float(cpost_processing_desc_cb_viewport_width), 
+        float(cpost_processing_desc_cb_viewport_height)
+    );
+
+    // Calculate standard 0.0 to 1.0 screen UV coordinates
+    float2 normalizedUV = fragCoord.xy / viewportSize;
+
+    // Apply dynamic resolution scale (xy) and clamp to active viewport region bounds (zw)
+    float2 clampedUV = min(
+        normalizedUV * cpost_processing_desc_cb_src_frame_to_dynamic_scale.xy,
+        cpost_processing_desc_cb_src_frame_to_dynamic_scale.zw
+    );
+
+    // Sample the final scene color buffer (Final Frame = World + UI)
+    float4 sourceColor = source_sampler.SampleLevel(SamplerLinearClamp, clampedUV, 0.0f);
+
+    // -------------------------------------------------------------
+    // 2. Select and Apply Opto-Electronic Transfer Function (OETF)
+    // -------------------------------------------------------------
+    float4 finalColor;
+    finalColor.a = sourceColor.a; // Retain original texture alpha globally
+
+    switch (cpost_processing_desc_cb_oetf_id)
+    {
+    case 0:
+        // Standard SDR sRGB Output
+        finalColor.rgb = ApplySRGBOETF(sourceColor.rgb);
+        break;
+
+    case 1:
+        float4 worldColor = world_shadow_sampler.SampleLevel(SamplerLinearClamp, clampedUV, 0.0f);
+        float3 delta = abs(sourceColor.rgb - worldColor.rgb);
+        float diff = max(delta.r, max(delta.g, delta.b));
+
+        // 1. Soften the transition threshold to prevent harsh binary edges.
+        // Raising the upper bound (e.g., to 0.03f or 0.05f) allows a gentler gradient.
+        float uiMask = smoothstep(0.005f, 0.04f, diff);
+
+        // 2. Stabilize the alpha value used for division.
+        // Raising this minimum value (e.g., from 0.001f to 0.02f) prevents the
+        // UI color reconstruction from blowing up on semi-transparent edges.
+        float safeA = max(sourceColor.a, 0.02f);
+
+        // Reconstruct the UI gamma using the stabilized alpha
+        float3 uiGamma = (sourceColor.rgb - worldColor.rgb * (1.0f - sourceColor.a)) / safeA;
+        float3 uiLinear = ApplyUIProcessing(uiGamma, sourceColor.a).rgb;
+
+        // 3. Smooth out low-alpha transitions.
+        // Fade the mask slightly when alpha is extremely close to zero,
+        // as we cannot reliably reconstruct UI colors at near-zero opacities.
+        uiMask *= smoothstep(0.0f, 0.02f, sourceColor.a);
+
+        float3 correctedComposite =
+        worldColor.rgb * (1.0f - sourceColor.a) +
+        uiLinear * sourceColor.a;
+
+        finalColor.rgb = ApplyPQOETF(lerp(sourceColor.rgb, correctedComposite, uiMask));
+        break;
+    case 2:
+    case 3:
+        // Pass-through / Bypass (Keeps colors in standard linear format)
+        finalColor.rgb = sourceColor.rgb;
+        break;
+
+    default:
+        // Fallback default back to sRGB OETF
+        finalColor.rgb = ApplySRGBOETF(sourceColor.rgb);
+        break;
+    }
+
+    return finalColor;
+}
+
+// =====================================================================================
+// Main Pixel Shader Entry Point
+// =====================================================================================
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
-    gl_FragCoord = stage_input.gl_FragCoord;
-    gl_FragCoord.w = 1.0 / gl_FragCoord.w;
-    frag_main();
+    float4 fragCoord = stage_input.gl_FragCoord;
+    
+    // Correct perspective interpolation divide
+    fragCoord.w = 1.0f / fragCoord.w;
+    
     SPIRV_Cross_Output stage_output;
-    stage_output.out_var_SV_TARGET = out_var_SV_TARGET;
+    stage_output.out_var_SV_TARGET = ProcessPostProcessing(fragCoord);
     return stage_output;
 }

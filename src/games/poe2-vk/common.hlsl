@@ -18,6 +18,9 @@ float3 ApplyGammaCorrectionByLuminance(float3 color_input) {
 
 // Processes UI shader output: neutralizes vanilla sdr_scale, applies UI gamma
 // correction, scales by UI nits, and optionally hides UI for screenshots.
+float4 ApplyUIProcessing(float4 color) {
+    return ApplyUIProcessing(color.rgb, color.a);
+}
 float4 ApplyUIProcessing(float3 color, float alpha) {
   if (RENODX_HIDE_UI == 1.f) {
     return float4(0.f, 0.f, 0.f, 0.f);
