@@ -12,6 +12,7 @@ struct ShaderInjectData {
   float tone_map_exposure;
   float tone_map_highlights;
   float tone_map_shadows;
+
   float tone_map_contrast;
   float tone_map_saturation;
   float tone_map_highlight_saturation;
@@ -20,6 +21,7 @@ struct ShaderInjectData {
   float tone_map_hue_shift;
   float gamma_correction;
   float swap_chain_gamma_correction;
+
   float custom_random;
   float custom_grain_strength;
   float vignette_strength;
@@ -27,6 +29,10 @@ struct ShaderInjectData {
   float bloom_scaling;
   float hide_ui;
   float hue_correction;
+  float bleaching_intensity;
+
+  float bleaching_sensitivity;
+  float padding[28];
 };
 
 #ifndef __cplusplus
@@ -82,6 +88,8 @@ cbuffer shader_injection : register(b13) {
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
 #define BLOOM_SCALING                          shader_injection.bloom_scaling
 #define HUE_CORRECTION                         shader_injection.hue_correction
+#define RENODX_BLEACHING_INTENSITY             shader_injection.bleaching_intensity
+#define RENODX_BLEACHING_SENSITIVITY           shader_injection.bleaching_sensitivity
 
 #include "../../shaders/renodx.hlsl"
 

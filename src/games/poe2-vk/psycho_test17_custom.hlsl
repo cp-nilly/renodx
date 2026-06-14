@@ -523,12 +523,14 @@ float psycho17_AdaptiveHueSensitivity(float2 mb_xy, float2 mb_anchor) {
 float3 psychotm_test17(
     float3 bt709_linear_input,
     float peak_value = 1000.f / 203.f,
+    float diffuse_nits = 203.f,
     float exposure = 1.f,
     float highlights = 1.f,
     float shadows = 1.f,
     float contrast = 1.f,
     float purity_scale = 1.f,
     float bleaching_intensity = 1.f,
+    float bleaching_sensitivity = 20000.f,
     float clip_point = 100.f,
     float hue_restore = 1.f,
     float adaptation_contrast = 1.f,
@@ -601,14 +603,15 @@ float3 psychotm_test17(
   float3 lms_cones = lms_graded;
 
   if (bleaching_intensity != 0.f) {
-    float3 availability = 1.f.xxx / (1.f.xxx + (peak_value / current_adaptive_state_lms));
-    availability = lerp(1.f.xxx, availability, bleaching_intensity);
-
-    float input_energy = lms_cones.x + lms_cones.y + lms_cones.z;
-    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y + current_adaptive_state_lms.z;
-    float3 white_at_y = current_adaptive_state_lms * (input_energy / white_y);
+    float3 stimulus_trolands = max(current_adaptive_state_lms, 0.0f) * diffuse_nits * 4.0f;
+    float3 availability = 1.0f.xxx / (1.0f.xxx + stimulus_trolands / bleaching_sensitivity);
+    availability = lerp(1.0f.xxx, availability, bleaching_intensity);
+    
+    float y = lms_cones.x + lms_cones.y;
+    float white_y = current_adaptive_state_lms.x + current_adaptive_state_lms.y;
+    float3 white_at_y = current_adaptive_state_lms * (y / max(white_y, 1e-5f));
     float3 delta = (lms_cones - white_at_y) * availability;
-    lms_cones = max(0, white_at_y + delta);
+    lms_cones = max(0.0f, white_at_y + delta);
   }
 
   // Naka-Rushton is scale-equivariant if input, peak, and anchors are all

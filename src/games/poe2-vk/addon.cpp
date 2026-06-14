@@ -5,7 +5,7 @@
 
 #define ImTextureID ImU64
 
-#define DEBUG_LEVEL_0
+//#define DEBUG_LEVEL_0
 // #define DEBUG_LEVEL_1
 // #define DEBUG_LEVEL_2
 
@@ -237,6 +237,30 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.01f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "BleachingIntensity",
+        .binding = &shader_injection.bleaching_intensity,
+        .default_value = 100.f,
+        .label = "Bleach Intensity",
+        .section = "Tone Mapping",
+        .tooltip = "Controls maximum desaturation of bleaching effect. 1 allows all the way to white.",
+        .min = 0.f,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
+        .parse = [](float value) { return value * 0.01f; },
+    },
+    new renodx::utils::settings::Setting{
+        .key = "BleachingSensitivity",
+        .binding = &shader_injection.bleaching_sensitivity,
+        .default_value = 1000.f,
+        .label = "Bleach Onset Nits",
+        .section = "Tone Mapping",
+        .tooltip = "When bleach effect starts to become noticable.",
+        .min = 48.f,
+        .max = 2000.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
+        .parse = [](float value) { return value * 24.f; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
