@@ -32,7 +32,8 @@ struct ShaderInjectData {
   float bleaching_intensity;
 
   float bleaching_sensitivity;
-  float padding[28];
+  float adaptive_state;
+  float padding[24];
 };
 
 #ifndef __cplusplus
@@ -90,6 +91,7 @@ cbuffer shader_injection : register(b13) {
 #define HUE_CORRECTION                         shader_injection.hue_correction
 #define RENODX_BLEACHING_INTENSITY             shader_injection.bleaching_intensity
 #define RENODX_BLEACHING_SENSITIVITY           shader_injection.bleaching_sensitivity
+#define RENODX_ADAPTIVE_STATE                  shader_injection.adaptive_state
 
 #include "../../shaders/renodx.hlsl"
 

@@ -304,8 +304,8 @@ float3 PSYCHOGRADE(LUTSampleResult lut_sample) {
       1.f,                                 // adaptation_contrast
       0,                                   // white_curve_mode
       1.f,                                 // cone_response_exponent
-      0.18f,                               // current_adaptive_state_bt709
-      0.18f,                               // current_background_state_bt709
+      RENODX_ADAPTIVE_STATE,               // current_adaptive_state_bt709
+      RENODX_ADAPTIVE_STATE,               // current_background_state_bt709
       1.f,                                 // gamut_compression
       1);                                  // gamut_compression_mode (BT.2020 bound)
 

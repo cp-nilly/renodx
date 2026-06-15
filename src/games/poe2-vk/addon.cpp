@@ -263,6 +263,18 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 24.f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "AdaptiveState",
+        .binding = &shader_injection.adaptive_state,
+        .default_value = .18f,
+        .label = "Adaptive State",
+        .section = "Tone Mapping",
+        .tooltip = "Exposure setting #2?",
+        .min = 1.f,
+        .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
+        .parse = [](float value) { return value * .01f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_dechroma,
         .default_value = 0.f,
