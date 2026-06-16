@@ -265,7 +265,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "AdaptiveState",
         .binding = &shader_injection.adaptive_state,
-        .default_value = .18f,
+        .default_value = 18.f,
         .label = "Adaptive State",
         .section = "Tone Mapping",
         .tooltip = "Exposure setting #2?",
