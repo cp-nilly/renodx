@@ -44,8 +44,3 @@ bin/**
 .env
 .vscode/mcp.json
 .kiro/
-
-CMakeFiles/**
-.vs/**
-DartConfiguration.tcl
-spirv_val.cmake
