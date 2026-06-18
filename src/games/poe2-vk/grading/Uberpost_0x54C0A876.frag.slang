@@ -210,10 +210,7 @@ void frag_main()
     _460 = float4(lerp(_424.xyz, _460.xyz, saturate(RENODX_COLOR_GRADE_STRENGTH)), _460.w);
 
     if (RENODX_TONE_MAP_TYPE > 0.f) {
-  
-        float in_max = max(1.0f, max(_460.x, max(_460.y, _460.z)));
-        float3 normalized = _460.xyz / in_max;
-        float3 linear_color = renodx::color::srgb::DecodeSafe(normalized) * in_max;
+        float3 linear_color = _460.rgb;
 
         // User grading in linear space
         UserGradingConfig _pre_cg = CreateColorGradeConfig();
@@ -228,9 +225,6 @@ void frag_main()
         lut_result.pre_lut_linear = _396;
 
         float3 hdr_color = PSYCHOGRADE(lut_result);
-
-        float out_max = max(1.0f, max(hdr_color.r, max(hdr_color.g, hdr_color.b)));
-        hdr_color = renodx::color::srgb::EncodeSafe(hdr_color / out_max) * out_max;
 
         if (RENODX_GAMMA_CORRECTION == 1.f) {
             hdr_color = ApplyGammaCorrectionByLuminance(hdr_color);
