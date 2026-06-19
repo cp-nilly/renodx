@@ -161,7 +161,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Tone Mapping",
         .tooltip = "Sets the tone mapper type",
         .labels = {"Vanilla", "Psycho V17"},
-        .is_visible = []() { return current_settings_mode >= 1; },
+        .is_enabled = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapPeakNits",
@@ -202,7 +202,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Scene Gamma Correction",
         .section = "Tone Mapping",
         .labels = {"Off", "2.2 Per Channel"},
-        .is_visible = []() { return current_settings_mode >= 1; },
+        .is_enabled = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "SwapChainGammaCorrection",
@@ -212,7 +212,7 @@ renodx::utils::settings::Settings settings = {
         .label = "UI Gamma Correction",
         .section = "Tone Mapping",
         .labels = {"Off", "2.2 Per Channel"},
-        .is_visible = []() { return current_settings_mode >= 1; },
+        .is_enabled = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ToneMapHueShift",
@@ -229,7 +229,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "HueCorrection",
         .binding = &shader_injection.hue_correction,
-        .default_value = 25.f,
+        .default_value = 0.f,
         .label = "Hue Correction",
         .section = "Tone Mapping",
         .tooltip = "Post tonemap hue correction toward per channel reference. Fixes pink fire/lava.",
@@ -241,7 +241,7 @@ renodx::utils::settings::Settings settings = {
     new renodx::utils::settings::Setting{
         .key = "BleachingIntensity",
         .binding = &shader_injection.bleaching_intensity,
-        .default_value = 100.f,
+        .default_value = 0.f,
         .label = "Bleach Intensity",
         .section = "Tone Mapping",
         .tooltip = "Controls maximum desaturation of bleaching effect. 1 allows all the way to white.",
@@ -249,11 +249,12 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.01f; },
+        .is_visible = []() { return false; },
     },
     new renodx::utils::settings::Setting{
         .key = "BleachingSensitivity",
         .binding = &shader_injection.bleaching_sensitivity,
-        .default_value = 1000.f,
+        .default_value = 203.f,
         .label = "Bleach Onset Nits",
         .section = "Tone Mapping",
         .tooltip = "When bleach effect starts to become noticable.",
@@ -261,6 +262,7 @@ renodx::utils::settings::Settings settings = {
         .max = 2000.f,
         .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 24.f; },
+        .is_visible = []() { return false; },
     },
     new renodx::utils::settings::Setting{
         .key = "AdaptiveState",
@@ -305,7 +307,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .max = 2.f,
         .format = "%.2f",
-        .is_visible = []() { return current_settings_mode >= 1; },
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeHighlights",
@@ -314,8 +316,8 @@ renodx::utils::settings::Settings settings = {
         .label = "Highlights",
         .section = "Color Grading",
         .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return (value + 2.f) * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeShadows",
@@ -324,8 +326,8 @@ renodx::utils::settings::Settings settings = {
         .label = "Shadows",
         .section = "Color Grading",
         .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return current_settings_mode >= 1; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeContrast",
@@ -334,6 +336,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Contrast",
         .section = "Color Grading",
         .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -343,6 +346,7 @@ renodx::utils::settings::Settings settings = {
         .label = "Saturation",
         .section = "Color Grading",
         .max = 100.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.02f; },
     },
     new renodx::utils::settings::Setting{
@@ -355,7 +359,6 @@ renodx::utils::settings::Settings settings = {
         .max = 100.f,
         .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.02f; },
-        //.is_visible = []() { return false; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeFlare",
@@ -376,7 +379,7 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "LUT Strength as applied by the game",
         .max = 100.f,
-        .is_enabled = []() { return shader_injection.tone_map_type > 0; },
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
         .parse = [](float value) { return value * 0.01f; },
     },
     new renodx::utils::settings::Setting({
