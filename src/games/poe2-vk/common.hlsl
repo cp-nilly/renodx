@@ -303,7 +303,7 @@ float3 PSYCHOGRADE(LUTSampleResult lut_sample) {
       cg_config.hue_emulation_strength,    // hue_restore
       1.f,                                 // adaptation_contrast
       0,                                   // white_curve_mode
-      1.f,                                 // cone_response_exponent
+      RENODX_CONE_RESPONSE,                // cone_response_exponent
       RENODX_ADAPTIVE_STATE,               // current_adaptive_state_bt709
       RENODX_ADAPTIVE_STATE,               // current_background_state_bt709
       1.f,                                 // gamut_compression

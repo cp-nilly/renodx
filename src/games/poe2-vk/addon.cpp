@@ -275,6 +275,18 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * .01f; },
     },
     new renodx::utils::settings::Setting{
+        .key = "ConeResponse",
+        .binding = &shader_injection.cone_response,
+        .default_value = 100.f,
+        .label = "Cone Response",
+        .section = "Tone Mapping",
+        .tooltip = "Idk, why not change it and find out?",
+        .min = 10.f,
+        .max = 200.f,
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
+        .parse = [](float value) { return value * .01f; },
+    },
+    new renodx::utils::settings::Setting{
         .key = "ColorGradeBlowout",
         .binding = &shader_injection.tone_map_dechroma,
         .default_value = 0.f,
