@@ -103,6 +103,9 @@ void frag_main()
     float2 _217 = float2(cpost_processing_desc_cb_frame_size);
     float2 _221 = _200 * _211;
     float4 _227 = source_sampler.SampleLevel(SamplerLinearClamp, float4(_221, 0.0f, 0.0f).xy, 0.0f);
+    if (RENODX_GAMMA_CORRECTION == 1.f) { // applied on source (less black crush than after tone mapper)
+        _227.rgb = ApplyGammaCorrectionByLuminance(_227.rgb);
+    }
     float2 _230 = cpost_processing_desc_cb_jitter_offset / _217;
     float2 _233 = (_200 * (float2(cpost_processing_desc_cb_dynamic_size) / _217)) + _230;
     bool _253;
@@ -228,10 +231,6 @@ void frag_main()
         lut_result.pre_lut_linear = _396;
 
         float3 hdr_color = PSYCHOGRADE(lut_result);
-
-        if (RENODX_GAMMA_CORRECTION == 1.f) {
-            hdr_color = ApplyGammaCorrectionByLuminance(hdr_color);
-        }
         _460 = float4(hdr_color, _460.w);
     }
 
