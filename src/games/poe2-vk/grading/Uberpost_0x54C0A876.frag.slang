@@ -179,15 +179,13 @@ void frag_main()
 
     float3 _396 = (_sceneColor + _bloomColor) * max(1.0f, cpost_processing_desc_cb_exposure);
 
-    // RenoDX: Shadows applied pre LUT on clean linear scene data.
+    // RenoDX: Applying physical properties of light before lut compression
     if (RENODX_TONE_MAP_TYPE > 0.f) {
-        UserGradingConfig _shadow_cg = CreateColorGradeConfig();
-        if (_shadow_cg.shadows != 1.f) {
-            float _shadow_y = renodx::color::y::from::BT709(_396);
-            _396 = renodx::color::correct::Luminance(
-                _396, _shadow_y,
-                Shadows(_shadow_y, _shadow_cg.shadows, 0.18f));
-        }
+        // Exposure, contrast, highlights, shadows in linear space.
+        UserGradingConfig _pre_cg = CreateColorGradeConfig();
+        float _pre_y = renodx::color::y::from::BT709(_396);
+        _396 = ApplyExposureContrastFlareHighlightsShadowsByLuminance(
+            _396, _pre_y, _pre_cg);
     }
 
     float4 _397 = float4(_396.x, _396.y, _396.z, _377.w);
@@ -222,13 +220,6 @@ void frag_main()
 
     if (RENODX_TONE_MAP_TYPE > 0.f) {
         float3 linear_color = _460.rgb;
-
-        // Exposure, contrast, highlights in linear space (shadows applied pre LUT).
-        UserGradingConfig _pre_cg = CreateColorGradeConfig();
-        _pre_cg.shadows = 1.f;
-        float _pre_y = renodx::color::y::from::BT709(linear_color);
-        linear_color = ApplyExposureContrastFlareHighlightsShadowsByLuminance(
-            linear_color, _pre_y, _pre_cg);
 
         LUTSampleResult lut_result;
         lut_result.graded = linear_color;
