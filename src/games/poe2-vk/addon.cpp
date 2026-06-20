@@ -427,14 +427,19 @@ renodx::utils::settings::Settings settings = {
         .parse = [](float value) { return value * 0.01f; },
     },
     new renodx::utils::settings::Setting{
-        .key = "HideUI",
-        .binding = &shader_injection.hide_ui,
-        .value_type = renodx::utils::settings::SettingValueType::INTEGER,
-        .default_value = 0.f,
+        .value_type = renodx::utils::settings::SettingValueType::CUSTOM,
         .label = "Hide UI",
         .section = "Effects",
         .tooltip = "Hides all UI elements for clean screenshots.",
-        .labels = {"Off", "On"},
+        .on_draw = []() {
+          int current_item = static_cast<int>(shader_injection.hide_ui);
+          const char* format = (current_item == 0) ? "Off" : "On";
+          bool changed = ImGui::SliderInt("Hide UI", &current_item, 0, 1, format);
+          if (changed) {
+            shader_injection.hide_ui = static_cast<float>(current_item);
+          }
+          return changed;
+        }
     },
     new renodx::utils::settings::Setting{
         .key = "UIToggleHotkey",
@@ -621,9 +626,6 @@ void OnPresent(reshade::api::command_queue* /*unused*/,
     if (key_down && !ui_toggle_key_was_pressed) {
       // Toggle Hide UI
       shader_injection.hide_ui = (shader_injection.hide_ui == 0.f) ? 1.f : 0.f;
-
-      // Update the setting value to keep UI in sync
-      renodx::utils::settings::UpdateSetting("HideUI", shader_injection.hide_ui);
     }
 
     ui_toggle_key_was_pressed = key_down;
