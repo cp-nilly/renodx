@@ -103,9 +103,12 @@ void frag_main()
     float2 _217 = float2(cpost_processing_desc_cb_frame_size);
     float2 _221 = _200 * _211;
     float4 _227 = source_sampler.SampleLevel(SamplerLinearClamp, float4(_221, 0.0f, 0.0f).xy, 0.0f);
-    if (RENODX_GAMMA_CORRECTION == 1.f) { // applied on source (less black crush than after tone mapper)
+
+    // RenoDX: Gamma Correction (applied on source, less black crush than after tone mapper)
+    if (RENODX_GAMMA_CORRECTION == 1.f) {
         _227.rgb = ApplyGammaCorrectionByLuminance(_227.rgb);
     }
+
     float2 _230 = cpost_processing_desc_cb_jitter_offset / _217;
     float2 _233 = (_200 * (float2(cpost_processing_desc_cb_dynamic_size) / _217)) + _230;
     bool _253;
@@ -747,8 +750,11 @@ void frag_main()
         float3 _1985 = normalize(float3(0.20000000298023223876953125f, 0.800000011920928955078125f, 4.0f) - _1952);
         float3 _1988 = _1948.xyz;
         float4 _2006 = (((float4(0.800000011920928955078125f.xxx * ((_1899 * clamp(dot(_1892, _1894), 0.0f, 1.0f)) + (_1899 * pow(clamp(dot(_1892, normalize(_1894 + _1896)), 0.0f, 1.0f), 1.0f))), 1.0f) * _1858) * (1.0f - clamp(_1845 / max(1.0000000116860974230803549289703e-07f, length(float2(ddx(_1845), ddy(_1845)))), 0.0f, 1.0f))) * _1908) + ((((float4(0.800000011920928955078125f.xxx * ((_1988 * clamp(dot(_1983, _1985), 0.0f, 1.0f)) + (_1988 * pow(clamp(dot(_1983, normalize(_1985 + _1896)), 0.0f, 1.0f), 1.0f))), 1.0f) * _1949) * (1.0f - clamp(_1937 / max(1.0000000116860974230803549289703e-07f, length(float2(ddx(_1937), ddy(_1937)))), 0.0f, 1.0f))) * _1908) * float4(0.699999988079071044921875f, 0.699999988079071044921875f, 0.699999988079071044921875f, 1.0f));
+        
+        // RenoDX: Gear animation. Neutralize final scaling since we treating this as a ui element.
         _2006 = ApplyUIProcessing(_2006);
-        _2006.xyz /= 2.5f * (RENODX_DIFFUSE_WHITE_NITS / 203.0f); // neutralize final scaling since we treating this as a ui element
+        _2006.xyz /= 2.5f * (RENODX_DIFFUSE_WHITE_NITS / 203.0f);
+        
         float _2015 = clamp(_1813 + _2006.w, 0.0f, 1.0f);
         float2 _2024;
         float4 _2028;
