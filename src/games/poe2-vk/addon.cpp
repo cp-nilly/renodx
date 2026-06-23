@@ -5,7 +5,7 @@
 
 #define ImTextureID ImU64
 
-//#define DEBUG_LEVEL_0
+// #define DEBUG_LEVEL_0
 // #define DEBUG_LEVEL_1
 // #define DEBUG_LEVEL_2
 
@@ -15,6 +15,7 @@
 #include <include/reshade.hpp>
 
 #include "../../mods/shader.hpp"
+#include "../../mods/swapchain.hpp"
 #include "../../utils/random.hpp"
 #include "../../utils/resource_upgrade.hpp"
 #include "../../utils/settings.hpp"
@@ -30,18 +31,7 @@ renodx::mods::shader::CustomShaders custom_shaders = {
   CustomShaderEntry(0x4DD5605C), // - VolumetricFog -
   CustomShaderEntry(0x287A8970), // - UI DistortionEdge -
   CustomShaderEntry(0x0C909150), // - UI Main -
-  { 0xDBD71D64, { // - output - inject shader with saved frame data
-    .crc32 = 0xDBD71D64,
-    .code = __0xDBD71D64,
-    .views = {{
-      .type = reshade::api::descriptor_type::shader_resource_view,
-      .slot = 2,
-      .space = 0, // have to use space that is used but has room? (haven't fully tested). So avoid using same space as source frame.
-      .get_view = [](reshade::api::command_list*) {
-        return frame_capture::g_texture_srv;
-      }
-    }}
-  }},
+  CustomShaderEntry(0xDBD71D64), // - Output -
   { 0x54C0A876, { // - uberpost - copy frame right after it's rendered
     .crc32 = 0x54C0A876,
     .code = __0x54C0A876,
@@ -579,63 +569,47 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("BloomScaling", 0.f);
   renodx::utils::settings::UpdateSetting("GammaCorrection", 0.f);
   renodx::utils::settings::UpdateSetting("SwapChainGammaCorrection", 0.f);
-  renodx::utils::settings::UpdateSetting(  "HideUI", 0.f);
+  renodx::utils::settings::UpdateSetting("HideUI", 0.f);
 }
 
-void OnInitDevice(reshade::api::device* device) {
-  const auto target_format = reshade::api::format::r16g16b16a16_float;
-  const auto view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F;
-
-  std::vector<renodx::utils::resource::ResourceUpgradeInfo> upgrade_infos = {
-      {
-          .old_format = reshade::api::format::r8g8b8a8_typeless,
-          .new_format = target_format,
-          .ignore_size = true,
-          .view_upgrades = view_upgrades,
-          .usage_include = reshade::api::resource_usage::render_target,
-      },
-      {
-          .old_format = reshade::api::format::r8g8b8a8_unorm_srgb,
-          .new_format = target_format,
-          .ignore_size = true,
-          .view_upgrades = view_upgrades,
-          .usage_include = reshade::api::resource_usage::render_target,
-      },
-      {
-          .old_format = reshade::api::format::r11g11b10_float,
-          .new_format = target_format,
-          .ignore_size = true,
-          .view_upgrades = view_upgrades,
-          .usage_include = reshade::api::resource_usage::render_target,
-      },
-  };
-
-  renodx::utils::resource::upgrade::SetUpgradeInfos(device, upgrade_infos);
-}
-
-void OnPresent(reshade::api::command_queue* /*unused*/,
-               reshade::api::swapchain* /*unused*/,
+void OnPresent(reshade::api::command_queue* queue,
+               reshade::api::swapchain* swapchain,
                const reshade::api::rect* /*unused*/,
                const reshade::api::rect* /*unused*/,
                uint32_t /*unused*/,
                const reshade::api::rect* /*unused*/) {
-  // Check UI toggle hotkey (skip if user is currently setting a new hotkey)
+  // Check UI Hotkey
   if (ui_toggle_hotkey != 0 && !hotkey_input_active) {
     bool key_down = (GetAsyncKeyState(ui_toggle_hotkey) & 0x8000) != 0;
 
     if (key_down && !ui_toggle_key_was_pressed) {
-      // Toggle Hide UI
       shader_injection.hide_ui = (shader_injection.hide_ui == 0.f) ? 1.f : 0.f;
     }
 
     ui_toggle_key_was_pressed = key_down;
   }
+
+  // Get UI Drawn Backbuffer and Merge with World Texture (via OnPresent Pixel Shader)
+  uint32_t current_index = swapchain->get_current_back_buffer_index();
+  if (current_index >= frame_capture::g_backbuffer_rtvs.size()) return;
+
+  reshade::api::resource_view current_rtv = frame_capture::g_backbuffer_rtvs[current_index];
+  if (current_rtv == 0) return;
+
+  reshade::api::command_list* cmd_list = queue->get_immediate_command_list();
+  reshade::api::device* device = queue->get_device();
+  reshade::api::resource backbuffer = swapchain->get_back_buffer(current_index);
+
+  frame_capture::CompositeFrame(cmd_list, device, backbuffer, current_rtv);
 }
 
 }  // namespace
 
 extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
 extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Path of Exile 2 - (Vulkan)";
+
+static constexpr reshade::api::resource_usage upgraded_usage =
+    reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_source;
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
@@ -645,8 +619,67 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       renodx::mods::shader::allow_multiple_push_constants = true;
       renodx::mods::shader::minimum_constant_buffer_stages = reshade::api::shader_stage::pixel;
 
-      renodx::utils::resource::upgrade::Use(fdw_reason);
-      reshade::register_event<reshade::addon_event::init_device>(OnInitDevice);
+      renodx::mods::swapchain::target_format = reshade::api::format::r16g16b16a16_float;
+      renodx::mods::swapchain::target_color_space = reshade::api::color_space::extended_srgb_linear;
+
+      renodx::mods::swapchain::resource_upgrade_infos = {
+          {
+              .old_format = reshade::api::format::r8g8b8a8_typeless,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::r8g8b8a8_unorm_srgb,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::r11g11b10_float,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::b8g8r8a8_typeless,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::b8g8r8a8_unorm_srgb,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::b8g8r8a8_unorm,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::r10g10b10a2_unorm,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          },
+          {
+              .old_format = reshade::api::format::b10g10r10a2_unorm,
+              .new_format = reshade::api::format::r16g16b16a16_float,
+              .ignore_size = true,
+              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
+              .usage_include = upgraded_usage,
+          }};
+
       reshade::register_event<reshade::addon_event::present>(OnPresent);
       frame_capture::RegisterEvents();
 
@@ -660,8 +693,6 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
 
       break;
     case DLL_PROCESS_DETACH:
-      renodx::utils::resource::upgrade::Use(fdw_reason);
-      reshade::unregister_event<reshade::addon_event::init_device>(OnInitDevice);
       reshade::unregister_event<reshade::addon_event::present>(OnPresent);
       frame_capture::UnregisterEvents();
       reshade::unregister_addon(h_module);
@@ -672,6 +703,8 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   renodx::mods::shader::Use(fdw_reason, custom_shaders, &shader_injection);
   renodx::utils::random::binds.push_back(&shader_injection.custom_random);
   renodx::utils::random::Use(fdw_reason);
+
+  renodx::mods::swapchain::Use(fdw_reason, &shader_injection);
 
   return TRUE;
 }

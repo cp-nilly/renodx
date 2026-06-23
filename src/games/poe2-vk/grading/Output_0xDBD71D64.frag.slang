@@ -19,10 +19,6 @@ SamplerState SamplerLinearClamp : register(s1, space0);
 [[vk::binding(0, 5)]]
 Texture2D<float4> source_sampler : register(t0, space5);
 
-// --- Frame Capture Binding ---
-[[vk::binding(2, 0)]]
-Texture2D<float4> world_shadow_sampler : register(t2, space0);
-
 // =====================================================================================
 // Shader Input/Output Structures
 // =====================================================================================
@@ -122,28 +118,24 @@ float4 ProcessPostProcessing(float4 fragCoord)
 
     switch (cpost_processing_desc_cb_oetf_id)
     {
-    case 0:
-        // Standard SDR sRGB Output
+    case 0: // REC709
         finalColor.rgb = ApplySRGBOETF(sourceColor.rgb);
         break;
 
-    case 1:
-        float4 worldColor = world_shadow_sampler.SampleLevel(SamplerLinearClamp, clampedUV, 0.0f);
-        float uiAlpha = sourceColor.a;
-        float3 uiColorUnmultiplied = sourceColor.rgb / (1.45f * max(uiAlpha, 0.0001f)); // Prevent division-by-zero, undo sdr scaling (assumes ui brighness 0.0 in settings)
-        float4 uiLinear = ApplyUIProcessing(uiColorUnmultiplied, uiAlpha);
-        float3 correctedComposite = worldColor.rgb * (1.0f - uiLinear.a) + (uiLinear.rgb * uiLinear.a);
-        finalColor.rgb = ApplyPQOETF(correctedComposite);
+    case 1: // ST2084
+        // Case only run when HDR ticked
+        // No longer need to PQ since we upgraded swapchain to 16bit. Let Windows PQ.
+        // Final adjustments have been moved to OnPresent custom shader that is run before present.
+        finalColor.rgb = sourceColor.rgb / 1.45f;
         break;
 
-    case 2:
-    case 3:
-        // Pass-through / Bypass (Keeps colors in standard linear format)
+    case 2: // LINEAR
+    case 3: // LINEAR SDR
+        // Case only run when HDR not ticked.
         finalColor.rgb = sourceColor.rgb;
         break;
 
     default:
-        // Fallback default back to sRGB OETF
         finalColor.rgb = ApplySRGBOETF(sourceColor.rgb);
         break;
     }
