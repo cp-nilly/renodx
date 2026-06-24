@@ -34,7 +34,8 @@ struct ShaderInjectData {
   float cone_response;
   float test;
   float dither;
-  float padding[20];
+  float background_state;
+  float padding[16];
 };
 
 #ifndef __cplusplus
@@ -94,6 +95,7 @@ cbuffer shader_injection : register(b13) {
 #define RENODX_CONE_RESPONSE                   shader_injection.cone_response
 #define RENODX_TEST                            shader_injection.test
 #define RENODX_DITHER                          shader_injection.dither
+#define RENODX_BACKGROUND_STATE                shader_injection.background_state
 
 #include "../../shaders/renodx.hlsl"
 

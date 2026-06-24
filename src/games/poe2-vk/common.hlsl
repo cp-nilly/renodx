@@ -153,6 +153,9 @@ struct UserGradingConfig {
   float dechroma;
   float hue_emulation_strength;
   float highlight_saturation;
+  float cone_response_exponent;
+  float3 adaptive_state;
+  float3 background_state;
 };
 
 UserGradingConfig CreateColorGradeConfig() {
@@ -166,7 +169,10 @@ UserGradingConfig CreateColorGradeConfig() {
     RENODX_TONE_MAP_DECHROMA,                             // float dechroma;
     RENODX_TONE_MAP_HUE_SHIFT,                            // float hue_emulation_strength;
     -1.f * (RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f),  // float highlight_saturation;
-    };
+    RENODX_CONE_RESPONSE,                                 // float cone_response_exponent;
+    (float3)RENODX_ADAPTIVE_STATE,                        // float3 adaptive_state;
+    (float3)RENODX_BACKGROUND_STATE                       // float3 background_state;
+  };
   return cg_config;
 }
 
@@ -297,9 +303,9 @@ float3 PSYCHOGRADE(LUTSampleResult lut_sample) {
       cg_config.hue_emulation_strength,    // hue_restore
       1.f,                                 // adaptation_contrast
       0,                                   // white_curve_mode
-      RENODX_CONE_RESPONSE,                // cone_response_exponent
-      RENODX_ADAPTIVE_STATE,               // current_adaptive_state_bt709
-      RENODX_ADAPTIVE_STATE,               // current_background_state_bt709
+      cg_config.cone_response_exponent,    // cone_response_exponent
+      cg_config.adaptive_state,            // current_adaptive_state_bt709
+      cg_config.background_state,          // current_background_state_bt709
       1.f,                                 // gamut_compression
       1);                                  // gamut_compression_mode (BT.2020 bound)
 
