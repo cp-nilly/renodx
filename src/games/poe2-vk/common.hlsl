@@ -1,6 +1,6 @@
 #include "./shared.h"
 #include "./macleod_boynton_purity.hlsl"
-#include "./psycho_test17_custom.hlsl"
+#include "../../shaders/tonemap/psychov.hlsl"
 
 // Interleaved Gradient Noise (Jimenez 2014)
 // Returns a scalar in [0,1) with good spatial blue-noise properties.
@@ -153,8 +153,6 @@ struct UserGradingConfig {
   float dechroma;
   float hue_emulation_strength;
   float highlight_saturation;
-  float bleaching_intensity;
-  float bleaching_sensitivity;
 };
 
 UserGradingConfig CreateColorGradeConfig() {
@@ -168,8 +166,6 @@ UserGradingConfig CreateColorGradeConfig() {
     RENODX_TONE_MAP_DECHROMA,                             // float dechroma;
     RENODX_TONE_MAP_HUE_SHIFT,                            // float hue_emulation_strength;
     -1.f * (RENODX_TONE_MAP_HIGHLIGHT_SATURATION - 1.f),  // float highlight_saturation;
-    RENODX_BLEACHING_INTENSITY,                           // float bleaching_intensity;
-    RENODX_BLEACHING_SENSITIVITY,                         // float bleaching_sensitivity;
     };
   return cg_config;
 }
@@ -288,17 +284,15 @@ float3 PSYCHOGRADE(LUTSampleResult lut_sample) {
 
   UserGradingConfig cg_config = CreateColorGradeConfig();
 
-  float3 output = renodx::tonemap::psycho::psychotm_test17(
+  float3 output = renodx::tonemap::psychov::psychotm_test17(
       graded,
       peak,                                // peak_value
-      shader_injection.diffuse_white_nits, // diffuse_white_nits
       1.f,                                 // exposure (already applied pre-LUT)
       1.f,                                 // highlights (already applied pre-LUT)
       1.f,                                 // shadows (already applied pre-LUT)
       1.f,                                 // contrast (already applied pre-LUT)
       1.f,                                 // purity_scale (saturation applied post-tonemap instead)
-      cg_config.bleaching_intensity,       // bleaching_intensity
-      cg_config.bleaching_sensitivity,     // bleaching_sensitivity
+      0.f,                                 // bleaching_intensity
       peak * 2.f,                          // clip_point
       cg_config.hue_emulation_strength,    // hue_restore
       1.f,                                 // adaptation_contrast

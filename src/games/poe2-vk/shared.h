@@ -29,14 +29,12 @@ struct ShaderInjectData {
   float bloom_scaling;
   float hide_ui;
   float hue_correction;
-  float bleaching_intensity;
-
-  float bleaching_sensitivity;
   float adaptive_state;
+
   float cone_response;
   float test;
   float dither;
-  float padding[12];
+  float padding[20];
 };
 
 #ifndef __cplusplus
@@ -92,8 +90,6 @@ cbuffer shader_injection : register(b13) {
 #define BLOOM_STRENGTH                         shader_injection.bloom_strength
 #define BLOOM_SCALING                          shader_injection.bloom_scaling
 #define HUE_CORRECTION                         shader_injection.hue_correction
-#define RENODX_BLEACHING_INTENSITY             shader_injection.bleaching_intensity
-#define RENODX_BLEACHING_SENSITIVITY           shader_injection.bleaching_sensitivity
 #define RENODX_ADAPTIVE_STATE                  shader_injection.adaptive_state
 #define RENODX_CONE_RESPONSE                   shader_injection.cone_response
 #define RENODX_TEST                            shader_injection.test
