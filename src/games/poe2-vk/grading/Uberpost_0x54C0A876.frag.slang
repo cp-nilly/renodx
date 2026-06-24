@@ -292,7 +292,7 @@ void frag_main()
         break; // unreachable workaround
     } while(false);
     float4 _492;
-    if (!_481 && !(RENODX_TONE_MAP_TYPE > 0.f))
+    if (false) // HDR only mod, disable bad 10-bit dither
     {
         _492 = _460 + (frac(sin(dot(gl_FragCoord.xy, float2(12.98980045318603515625f, 78.233001708984375f))) * 43758.546875f) * 0.001000000047497451305389404296875f).xxxx;
     }
