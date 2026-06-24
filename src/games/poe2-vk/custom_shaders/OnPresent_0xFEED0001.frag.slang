@@ -57,5 +57,8 @@ float4 main(float4 pos: SV_Position, float2 uv: TEXCOORD0) : SV_Target
         finalComposite = finalComposite + (noise - 0.5f) * ditherScale * noiseShaping;
     }
 
-    return float4(max(finalComposite, 0.0f), 1.0f);
+    // Clamp to BT2020
+    float3 finalscRGB = renodx::color::bt709::clamp::BT2020(finalComposite);
+
+    return float4(finalscRGB, 1.0f);
 }

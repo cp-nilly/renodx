@@ -271,7 +271,7 @@ float3 ApplySaturationBlowoutHueCorrectionHighlightSaturation(float3 tonemapped,
               .rgbOut);
     }
 
-    color = renodx::color::bt709::clamp::AP1(color);
+    color = renodx::color::bt709::clamp::BT2020(color);
   }
   return color;
 }
@@ -330,7 +330,7 @@ float3 PSYCHOGRADE(LUTSampleResult lut_sample) {
         output, 0.f, y_out, sat_config);
   }
 
-  output = renodx::color::bt709::clamp::AP1(output);
+  output = renodx::color::bt709::clamp::BT2020(output);
 
   // Clamp to display peak to prevent overshoot from post tonemap color ops
   float psycho_max_channel = max(output.r, max(output.g, output.b));
