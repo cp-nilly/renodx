@@ -344,8 +344,9 @@ renodx::utils::settings::Settings settings = {
         .section = "Color Grading",
         .tooltip = "Flare/Glare Compensation",
         .max = 100.f,
-        .parse = [](float value) { return value * 0.02f; },
-        .is_visible = []() { return false; },
+        .is_enabled = []() { return shader_injection.tone_map_type >= 1; },
+        .parse = [](float value) { return value * .01; },
+        .is_visible = []() { return true; },
     },
     new renodx::utils::settings::Setting{
         .key = "ColorGradeScene",
@@ -559,6 +560,7 @@ void OnPresetOff() {
   renodx::utils::settings::UpdateSetting("ColorGradeContrast", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeSaturation", 50.f);
   renodx::utils::settings::UpdateSetting("ColorGradeScene", 100.f);
+  renodx::utils::settings::UpdateSetting("ColorGradeFlare", 0.f);
   renodx::utils::settings::UpdateSetting("FxGrainStrength", 0.f);
   renodx::utils::settings::UpdateSetting("VignetteStrength", 100.f);
   renodx::utils::settings::UpdateSetting("BloomStrength", 100.f);
