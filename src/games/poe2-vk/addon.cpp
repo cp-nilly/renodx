@@ -32,13 +32,15 @@ renodx::mods::shader::CustomShaders custom_shaders = {
   CustomShaderEntry(0x287A8970), // - UI DistortionEdge -
   CustomShaderEntry(0x0C909150), // - UI Main -
   CustomShaderEntry(0xDBD71D64), // - Output -
-  { 0x54C0A876, { // - uberpost - copy frame right after it's rendered
-    .crc32 = 0x54C0A876,
-    .code = __0x54C0A876,
-    .on_drawn = [](reshade::api::command_list* cmd_list) {
-      frame_capture::CopyFrame(cmd_list);
-      frame_capture::ClearFrame(cmd_list);
-      return;
+  CustomShaderEntry(0x54C0A876), // - Uberpost -
+  { 0x2A9394EC, { // - PShad - Capture world on initial UI draw call
+    .crc32 = 0x2A9394EC,
+    .on_draw = [](reshade::api::command_list* cmd_list) -> bool {
+      if (!frame_capture::g_world_captured_this_frame.exchange(true)) {
+        frame_capture::CopyFrame(cmd_list);
+        frame_capture::ClearFrame(cmd_list);
+      }
+      return true;
     }}
   },
 };
@@ -576,6 +578,9 @@ void OnPresent(reshade::api::command_queue* queue,
                const reshade::api::rect* /*unused*/,
                uint32_t /*unused*/,
                const reshade::api::rect* /*unused*/) {
+
+  frame_capture::g_world_captured_this_frame.store(false);
+
   // Check UI Hotkey
   if (ui_toggle_hotkey != 0 && !hotkey_input_active) {
     bool key_down = (GetAsyncKeyState(ui_toggle_hotkey) & 0x8000) != 0;

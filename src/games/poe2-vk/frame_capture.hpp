@@ -8,6 +8,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 
 #include "./blue_noise/ldr_lll1_7.h"
 
@@ -15,6 +16,9 @@
 #pragma comment(lib, "Shlwapi.lib")
 
 namespace frame_capture {
+
+// World capture tracking.
+inline std::atomic<bool> g_world_captured_this_frame = {false};
 
 // Track the active render target and its associated view per command list.
 struct CommandListState {

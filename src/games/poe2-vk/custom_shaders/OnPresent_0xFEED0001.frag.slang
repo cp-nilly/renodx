@@ -24,9 +24,9 @@ float GenerateBlueNoise(int2 pixelCoord) {
 float4 main(float4 pos: SV_Position, float2 uv: TEXCOORD0) : SV_Target
 {
     int3 tex_coords = int3(pos.xy, 0);
-    float4 world = textures[1].Load(tex_coords);
     float4 ui = textures[0].Load(tex_coords);
-
+    float4 world = textures[1].Load(tex_coords);
+    
     // Process UI
     float uiAlpha = ui.a;
     float3 uiColorUnmultiplied = ui.rgb / max(uiAlpha, 0.0001f);
