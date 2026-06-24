@@ -207,8 +207,11 @@ void frag_main()
         _424 = _397;
         break;
     } while(false);
+    
     // RenoDX: ColorGradeScene controls desaturation LUT strength
-    _424 = lerp(_397, _424, saturate(RENODX_COLOR_GRADE_STRENGTH));
+    if (RENODX_TONE_MAP_TYPE > 0.f)
+        _424 = lerp(_397, _424, saturate(RENODX_COLOR_GRADE_STRENGTH));
+    
     float4 _460;
     if (cpost_processing_desc_cb_post_transform_enable != 0u)
     {
@@ -221,10 +224,11 @@ void frag_main()
     {
         _460 = _424;
     }
-    // RenoDX: ColorGradeScene controls post transform LUT strength
-    _460 = float4(lerp(_424.xyz, _460.xyz, saturate(RENODX_COLOR_GRADE_STRENGTH)), _460.w);
 
     if (RENODX_TONE_MAP_TYPE > 0.f) {
+        // RenoDX: ColorGradeScene controls post transform LUT strength
+        _460 = float4(lerp(_424.xyz, _460.xyz, saturate(RENODX_COLOR_GRADE_STRENGTH)), _460.w);
+
         float3 linear_color = _460.rgb;
 
         LUTSampleResult lut_result;
@@ -752,8 +756,10 @@ void frag_main()
         float4 _2006 = (((float4(0.800000011920928955078125f.xxx * ((_1899 * clamp(dot(_1892, _1894), 0.0f, 1.0f)) + (_1899 * pow(clamp(dot(_1892, normalize(_1894 + _1896)), 0.0f, 1.0f), 1.0f))), 1.0f) * _1858) * (1.0f - clamp(_1845 / max(1.0000000116860974230803549289703e-07f, length(float2(ddx(_1845), ddy(_1845)))), 0.0f, 1.0f))) * _1908) + ((((float4(0.800000011920928955078125f.xxx * ((_1988 * clamp(dot(_1983, _1985), 0.0f, 1.0f)) + (_1988 * pow(clamp(dot(_1983, normalize(_1985 + _1896)), 0.0f, 1.0f), 1.0f))), 1.0f) * _1949) * (1.0f - clamp(_1937 / max(1.0000000116860974230803549289703e-07f, length(float2(ddx(_1937), ddy(_1937)))), 0.0f, 1.0f))) * _1908) * float4(0.699999988079071044921875f, 0.699999988079071044921875f, 0.699999988079071044921875f, 1.0f));
         
         // RenoDX: Gear animation. Neutralize final scaling since we treating this as a ui element.
-        _2006 = ApplyUIProcessing(_2006);
-        _2006.xyz /= 2.5f * (RENODX_DIFFUSE_WHITE_NITS / 203.0f);
+        if (RENODX_TONE_MAP_TYPE > 0.f) {
+            _2006 = ApplyUIProcessing(_2006);
+            _2006.xyz /= 2.5f * (RENODX_DIFFUSE_WHITE_NITS / 203.0f);
+        }
         
         float _2015 = clamp(_1813 + _2006.w, 0.0f, 1.0f);
         float2 _2024;
