@@ -1,0 +1,1 @@
+$bytes = [System.IO.File]::ReadAllBytes("LDR_LLL1_7.png"); $hex = $bytes | ForEach-Object { "0x{0:x2}" -f $_ }; $array = $hex -join ", "; $content = "namespace blue_noise { inline constexpr unsigned char ldr_lll1_7[] = { " + $array + " }; }"; [System.IO.File]::WriteAllText("ldr_lll1_7.h", $content)

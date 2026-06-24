@@ -1,10 +1,18 @@
 #pragma once
 
+#include <combaseapi.h>
 #include <embed/shaders.h>
+#include <shlwapi.h>
+#include <wincodec.h>
 #include <include/reshade.hpp>
 #include <shared_mutex>
 #include <unordered_map>
 #include <vector>
+
+#include "./blue_noise/ldr_lll1_7.h"
+
+#pragma comment(lib, "Windowscodecs.lib")
+#pragma comment(lib, "Shlwapi.lib")
 
 namespace frame_capture {
 
@@ -32,17 +40,139 @@ inline std::shared_mutex& GetResourceMutex() {
   return mutex;
 }
 
-// Persistent graphics resources for the captured frame and isolated UI.
+// Persistent graphics resources for the captured frame, isolated UI, and Blue Noise.
 inline reshade::api::resource g_texture_sr = {};
 inline reshade::api::resource_view g_texture_srv = {};
 inline reshade::api::resource g_ui_texture = {};
 inline reshade::api::resource_view g_ui_texture_srv = {};
+
+// Blue Noise resource handles
+inline reshade::api::resource g_blue_noise_texture = {};
+inline reshade::api::resource_view g_blue_noise_srv = {};
 
 // Presentation rendering states and backbuffer descriptors.
 inline std::vector<reshade::api::resource_view> g_backbuffer_rtvs = {};
 inline reshade::api::pipeline g_composite_pipeline = {};
 inline reshade::api::pipeline_layout g_composite_layout = {};
 inline reshade::api::sampler g_linear_sampler = {};
+
+// Decodes the embedded PNG byte array directly from memory using WIC and COM streams
+inline bool LoadPNGFromMemory(const unsigned char* buffer, size_t size, std::vector<uint8_t>& out_pixels, uint32_t& out_width, uint32_t& out_height) {
+  CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  // Create an IStream wrapping our raw embedded memory buffer
+  IStream* stream = SHCreateMemStream(buffer, static_cast<UINT>(size));
+  if (stream == nullptr) return false;
+
+  IWICImagingFactory* factory = nullptr;
+  HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory));
+  if (FAILED(hr)) {
+    stream->Release();
+    return false;
+  }
+
+  IWICBitmapDecoder* decoder = nullptr;
+  // Initialize the WIC decoder using our memory stream instead of a file path
+  hr = factory->CreateDecoderFromStream(stream, nullptr, WICDecodeMetadataCacheOnDemand, &decoder);
+  if (FAILED(hr)) {
+    stream->Release();
+    factory->Release();
+    return false;
+  }
+
+  IWICBitmapFrameDecode* frame = nullptr;
+  hr = decoder->GetFrame(0, &frame);
+  if (FAILED(hr)) {
+    decoder->Release();
+    stream->Release();
+    factory->Release();
+    return false;
+  }
+
+  hr = frame->GetSize(&out_width, &out_height);
+  if (FAILED(hr)) {
+    frame->Release();
+    decoder->Release();
+    stream->Release();
+    factory->Release();
+    return false;
+  }
+
+  IWICFormatConverter* converter = nullptr;
+  hr = factory->CreateFormatConverter(&converter);
+  if (FAILED(hr)) {
+    frame->Release();
+    decoder->Release();
+    stream->Release();
+    factory->Release();
+    return false;
+  }
+
+  hr = converter->Initialize(frame, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+  if (FAILED(hr)) {
+    converter->Release();
+    frame->Release();
+    decoder->Release();
+    stream->Release();
+    factory->Release();
+    return false;
+  }
+
+  out_pixels.resize(out_width * out_height * 4);
+  hr = converter->CopyPixels(nullptr, out_width * 4, static_cast<UINT>(out_pixels.size()), out_pixels.data());
+
+  converter->Release();
+  frame->Release();
+  decoder->Release();
+  stream->Release();
+  factory->Release();
+  return SUCCEEDED(hr);
+}
+
+// Loads the embedded Blue Noise data and uploads it to the GPU
+inline void LoadBlueNoiseTexture(reshade::api::device* device) {
+  if (g_blue_noise_texture != 0) return;  // Already loaded
+
+  std::vector<uint8_t> pixels;
+  uint32_t width = 0, height = 0;
+
+  // Load from our inline embedded C++ array instead of reading a file from disk
+  if (!LoadPNGFromMemory(blue_noise::ldr_lll1_7, sizeof(blue_noise::ldr_lll1_7), pixels, width, height)) {
+    return;  // Failed to decode
+  }
+
+  reshade::api::resource_desc desc = {};
+  desc.type = reshade::api::resource_type::texture_2d;
+  desc.texture.width = width;
+  desc.texture.height = height;
+  desc.texture.depth_or_layers = 1;
+  desc.texture.levels = 1;
+  desc.texture.format = reshade::api::format::r8g8b8a8_unorm;
+  desc.texture.samples = 1;
+  desc.heap = reshade::api::memory_heap::gpu_only;
+  desc.usage = reshade::api::resource_usage::shader_resource;
+
+  reshade::api::subresource_data init_data = {};
+  init_data.data = pixels.data();
+  init_data.row_pitch = width * 4;
+  init_data.slice_pitch = pixels.size();
+
+  if (device->create_resource(desc, &init_data, reshade::api::resource_usage::shader_resource, &g_blue_noise_texture)) {
+    reshade::api::resource_view_desc srv_desc = {};
+    srv_desc.type = reshade::api::resource_view_type::texture_2d;
+    srv_desc.format = reshade::api::format::r8g8b8a8_unorm;
+    srv_desc.texture.first_level = 0;
+    srv_desc.texture.level_count = 1;
+    srv_desc.texture.first_layer = 0;
+    srv_desc.texture.layer_count = 1;
+
+    device->create_resource_view(
+        g_blue_noise_texture,
+        reshade::api::resource_usage::shader_resource,
+        srv_desc,
+        &g_blue_noise_srv);
+  }
+}
 
 // Initialize state tracking when a command list is created.
 inline void OnInitCommandList(reshade::api::command_list* cmd_list) {
@@ -196,9 +326,9 @@ inline bool CreatePipeline(reshade::api::device* device, reshade::api::format rt
       .binding = 0,
       .dx_register_index = 0,
       .dx_register_space = 0,
-      .count = 2,
+      .count = 3,
       .visibility = reshade::api::shader_stage::all_graphics,
-      .array_size = 2,
+      .array_size = 3,
       .type = reshade::api::descriptor_type::shader_resource_view};
 
   reshade::api::pipeline_layout_param params[1];
@@ -251,6 +381,9 @@ inline void OnInitSwapchain(reshade::api::swapchain* swapchain) {
   reshade::api::device* device = swapchain->get_device();
 
   std::unique_lock<std::shared_mutex> res_lock(GetResourceMutex());
+
+  // Load the Blue Noise Texture from Memory
+  LoadBlueNoiseTexture(device);
 
   if (g_composite_pipeline != 0) {
     device->destroy_pipeline(g_composite_pipeline);
@@ -385,6 +518,14 @@ inline void OnDestroySwapchain(reshade::api::swapchain* swapchain) {
     device->destroy_resource(g_ui_texture);
     g_ui_texture = {};
   }
+  if (g_blue_noise_srv != 0) {
+    device->destroy_resource_view(g_blue_noise_srv);
+    g_blue_noise_srv = {};
+  }
+  if (g_blue_noise_texture != 0) {
+    device->destroy_resource(g_blue_noise_texture);
+    g_blue_noise_texture = {};
+  }
 }
 
 // Combine the isolated UI texture and the captured game scene into the final backbuffer swapchain.
@@ -395,7 +536,7 @@ inline void CompositeFrame(
     reshade::api::resource_view current_rtv) {
   std::shared_lock<std::shared_mutex> res_lock(GetResourceMutex());
 
-  if (g_texture_srv == 0 || g_ui_texture == 0 || g_ui_texture_srv == 0 || g_composite_layout == 0 || g_composite_pipeline == 0) return;
+  if (g_texture_srv == 0 || g_ui_texture == 0 || g_ui_texture_srv == 0 || g_composite_layout == 0 || g_composite_pipeline == 0 || g_blue_noise_srv == 0) return;
 
   reshade::api::resource_desc desc = device->get_resource_desc(backbuffer);
 
@@ -432,15 +573,16 @@ inline void CompositeFrame(
   reshade::api::rect scissor = {0, 0, static_cast<int32_t>(desc.texture.width), static_cast<int32_t>(desc.texture.height)};
   cmd_list->bind_scissor_rects(0, 1, &scissor);
 
-  reshade::api::resource_view srvs[2] = {
+  reshade::api::resource_view srvs[3] = {
       g_ui_texture_srv,
-      g_texture_srv};
+      g_texture_srv,
+      g_blue_noise_srv};
 
   reshade::api::descriptor_table_update update = {};
   update.binding = 0;
   update.array_offset = 0;
   update.type = reshade::api::descriptor_type::shader_resource_view;
-  update.count = 2;
+  update.count = 3;
   update.descriptors = srvs;
 
   cmd_list->push_descriptors(
