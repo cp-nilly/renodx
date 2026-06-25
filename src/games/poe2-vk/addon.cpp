@@ -25,20 +25,35 @@
 namespace {
 
 renodx::mods::shader::CustomShaders custom_shaders = {
-  //__ALL_CUSTOM_SHADERS
-  CustomShaderEntry(0xC8F8D2FD), // - BloomBlur -
-  CustomShaderEntry(0x724558AC), // - BloomDownscale -
-  CustomShaderEntry(0x4DD5605C), // - VolumetricFog -
-  CustomShaderEntry(0x287A8970), // - UI DistortionEdge -
-  CustomShaderEntry(0x0C909150), // - UI Main -
-  CustomShaderEntry(0xDBD71D64), // - Output -
-  CustomShaderEntry(0x54C0A876), // - Uberpost -
-  { 0x2A9394EC, { // - PShad - Capture world on initial UI draw call
+  __ALL_CUSTOM_SHADERS,
+  { 0x2A9394EC, { // - PShad - Capture world on initial UI draw to screen
     .crc32 = 0x2A9394EC,
     .on_draw = [](reshade::api::command_list* cmd_list) -> bool {
-      if (!frame_capture::g_world_captured_this_frame.exchange(true)) {
-        frame_capture::CopyFrame(cmd_list);
-        frame_capture::ClearFrame(cmd_list);
+      if (frame_capture::g_world_captured_this_frame.load()) return true;
+
+      reshade::api::resource active_rt = {};
+      {
+        std::shared_lock<std::shared_mutex> lock(frame_capture::GetCmdListMutex());
+        auto& states = frame_capture::GetCmdListStates();
+        auto it = states.find(cmd_list);
+        if (it != states.end()) {
+          active_rt = it->second.active_rt;
+        }
+      }
+
+      if (active_rt.handle != 0) {
+        auto* device = cmd_list->get_device();
+        reshade::api::resource_desc desc = device->get_resource_desc(active_rt);
+
+        // Only capture if the bound render target matches the native resolution
+        if (desc.texture.width == frame_capture::g_native_width && 
+            desc.texture.height == frame_capture::g_native_height) {
+          
+          if (!frame_capture::g_world_captured_this_frame.exchange(true)) {
+            frame_capture::CopyFrame(cmd_list);
+            frame_capture::ClearFrame(cmd_list);
+          }
+        }
       }
       return true;
     }}

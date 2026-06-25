@@ -20,6 +20,10 @@ namespace frame_capture {
 // World capture tracking.
 inline std::atomic<bool> g_world_captured_this_frame = {false};
 
+// Native resolution.
+inline uint32_t g_native_width = 0;
+inline uint32_t g_native_height = 0;
+
 // Track the active render target and its associated view per command list.
 struct CommandListState {
   reshade::api::resource active_rt = {0};
@@ -420,6 +424,9 @@ inline void OnInitSwapchain(reshade::api::swapchain* swapchain) {
   if (backbuffer_desc.texture.width == 0 || backbuffer_desc.texture.height == 0) {
     return;
   }
+
+  g_native_width = backbuffer_desc.texture.width;
+  g_native_height = backbuffer_desc.texture.height;
 
   uint32_t buffer_count = swapchain->get_back_buffer_count();
   g_backbuffer_rtvs.resize(buffer_count);
