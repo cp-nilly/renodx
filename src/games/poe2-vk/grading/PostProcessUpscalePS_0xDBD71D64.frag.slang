@@ -19,6 +19,9 @@ SamplerState SamplerLinearClamp : register(s1, space0);
 [[vk::binding(0, 5)]]
 Texture2D<float4> source_sampler : register(t0, space5);
 
+[[vk::binding(0, 20)]]
+Texture2D<float4> blue_noise_texture;
+
 // =====================================================================================
 // Shader Input/Output Structures
 // =====================================================================================
@@ -123,15 +126,21 @@ float4 ProcessPostProcessing(float4 fragCoord)
         break;
 
     case 1: // ST2084
-        // Case only run when HDR ticked
-        // No longer need to PQ since we upgraded swapchain to 16bit. Let Windows PQ.
-        // Final adjustments have been moved to OnPresent custom shader that is run before present.
-        finalColor.rgb = sourceColor.rgb / 1.45f;
+        finalColor.rgb = ApplyPQOETF(sourceColor.rgb);
+
+        // Apply Dither
+        if (RENODX_DITHER != 0.f) {
+            int2 pixelCoord = int2(fragCoord.xy);
+            int2 texCoords = pixelCoord % 128; 
+            float noise = blue_noise_texture.Load(int3(texCoords, 0)).r;
+ 
+            float ditherScale = 1.0f / 1023.0f;
+            finalColor.rgb = finalColor.rgb + (noise - 0.5f) * ditherScale;
+        }
         break;
 
     case 2: // LINEAR
     case 3: // LINEAR SDR
-        // Case only run when HDR not ticked.
         finalColor.rgb = sourceColor.rgb;
         break;
 

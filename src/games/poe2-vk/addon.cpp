@@ -10,7 +10,6 @@
 // #define DEBUG_LEVEL_2
 
 #include <embed/shaders.h>
-
 #include <deps/imgui/imgui.h>
 #include <include/reshade.hpp>
 
@@ -20,45 +19,11 @@
 #include "../../utils/resource_upgrade.hpp"
 #include "../../utils/settings.hpp"
 #include "./shared.h"
-#include "./frame_capture.hpp"
+#include "./blue_noise/blue_noise.hpp"
 
 namespace {
 
-renodx::mods::shader::CustomShaders custom_shaders = {
-  __ALL_CUSTOM_SHADERS,
-  { 0x2A9394EC, { // - PShad - Capture world on initial UI draw to screen
-    .crc32 = 0x2A9394EC,
-    .on_draw = [](reshade::api::command_list* cmd_list) -> bool {
-      if (frame_capture::g_world_captured_this_frame.load()) return true;
-
-      reshade::api::resource active_rt = {};
-      {
-        std::shared_lock<std::shared_mutex> lock(frame_capture::GetCmdListMutex());
-        auto& states = frame_capture::GetCmdListStates();
-        auto it = states.find(cmd_list);
-        if (it != states.end()) {
-          active_rt = it->second.active_rt;
-        }
-      }
-
-      if (active_rt.handle != 0) {
-        auto* device = cmd_list->get_device();
-        reshade::api::resource_desc desc = device->get_resource_desc(active_rt);
-
-        // Only capture if the bound render target matches the native resolution
-        if (desc.texture.width == frame_capture::g_native_width && 
-            desc.texture.height == frame_capture::g_native_height) {
-          
-          if (!frame_capture::g_world_captured_this_frame.exchange(true)) {
-            frame_capture::CopyFrame(cmd_list);
-            frame_capture::ClearFrame(cmd_list);
-          }
-        }
-      }
-      return true;
-    }}
-  },
-};
+renodx::mods::shader::CustomShaders custom_shaders = { __ALL_CUSTOM_SHADERS };
 
 ShaderInjectData shader_injection;
 
@@ -549,7 +514,7 @@ renodx::utils::settings::Settings settings = {
     },
     new renodx::utils::settings::Setting{
         .value_type = renodx::utils::settings::SettingValueType::TEXT,
-        .label = "- Addon maintained by Forge + Nilly (0.5).",
+        .label = "- Addon maintained by nilly. Based off of Forge's 0.5 build.",
         .section = "About",
     },
     new renodx::utils::settings::Setting{
@@ -593,9 +558,6 @@ void OnPresent(reshade::api::command_queue* queue,
                const reshade::api::rect* /*unused*/,
                uint32_t /*unused*/,
                const reshade::api::rect* /*unused*/) {
-
-  frame_capture::g_world_captured_this_frame.store(false);
-
   // Check UI Hotkey
   if (ui_toggle_hotkey != 0 && !hotkey_input_active) {
     bool key_down = (GetAsyncKeyState(ui_toggle_hotkey) & 0x8000) != 0;
@@ -606,19 +568,6 @@ void OnPresent(reshade::api::command_queue* queue,
 
     ui_toggle_key_was_pressed = key_down;
   }
-
-  // Get UI Drawn Backbuffer and Merge with World Texture (via OnPresent Pixel Shader)
-  uint32_t current_index = swapchain->get_current_back_buffer_index();
-  if (current_index >= frame_capture::g_backbuffer_rtvs.size()) return;
-
-  reshade::api::resource_view current_rtv = frame_capture::g_backbuffer_rtvs[current_index];
-  if (current_rtv == 0) return;
-
-  reshade::api::command_list* cmd_list = queue->get_immediate_command_list();
-  reshade::api::device* device = queue->get_device();
-  reshade::api::resource backbuffer = swapchain->get_back_buffer(current_index);
-
-  frame_capture::CompositeFrame(cmd_list, device, backbuffer, current_rtv);
 }
 
 }  // namespace
@@ -627,18 +576,21 @@ extern "C" __declspec(dllexport) constexpr const char* NAME = "RenoDX";
 extern "C" __declspec(dllexport) constexpr const char* DESCRIPTION = "RenoDX for Path of Exile 2 - (Vulkan)";
 
 static constexpr reshade::api::resource_usage upgraded_usage =
-    reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_source;
+    reshade::api::resource_usage::render_target;
 
 BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
   switch (fdw_reason) {
     case DLL_PROCESS_ATTACH:
       if (!reshade::register_addon(h_module)) return FALSE;
 
+      renodx::utils::settings::global_name = "poe2-vk-exp";
+
       renodx::mods::shader::allow_multiple_push_constants = true;
       renodx::mods::shader::minimum_constant_buffer_stages = reshade::api::shader_stage::pixel;
 
-      renodx::mods::swapchain::target_format = reshade::api::format::r16g16b16a16_float;
-      renodx::mods::swapchain::target_color_space = reshade::api::color_space::extended_srgb_linear;
+      renodx::mods::swapchain::SetUseHDR10();
+      renodx::mods::swapchain::force_borderless = true;
+      renodx::mods::swapchain::prevent_full_screen = true;
 
       renodx::mods::swapchain::resource_upgrade_infos = {
           {
@@ -650,13 +602,6 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
           },
           {
               .old_format = reshade::api::format::r8g8b8a8_unorm_srgb,
-              .new_format = reshade::api::format::r16g16b16a16_float,
-              .ignore_size = true,
-              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
-              .usage_include = upgraded_usage,
-          },
-          {
-              .old_format = reshade::api::format::r11g11b10_float,
               .new_format = reshade::api::format::r16g16b16a16_float,
               .ignore_size = true,
               .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
@@ -677,21 +622,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
               .usage_include = upgraded_usage,
           },
           {
-              .old_format = reshade::api::format::b8g8r8a8_unorm,
-              .new_format = reshade::api::format::r16g16b16a16_float,
-              .ignore_size = true,
-              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
-              .usage_include = upgraded_usage,
-          },
-          {
-              .old_format = reshade::api::format::r10g10b10a2_unorm,
-              .new_format = reshade::api::format::r16g16b16a16_float,
-              .ignore_size = true,
-              .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
-              .usage_include = upgraded_usage,
-          },
-          {
-              .old_format = reshade::api::format::b10g10r10a2_unorm,
+              .old_format = reshade::api::format::r11g11b10_float,
               .new_format = reshade::api::format::r16g16b16a16_float,
               .ignore_size = true,
               .view_upgrades = renodx::utils::resource::VIEW_UPGRADES_RGBA16F,
@@ -699,7 +630,24 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
           }};
 
       reshade::register_event<reshade::addon_event::present>(OnPresent);
-      frame_capture::RegisterEvents();
+      blue_noise::RegisterEvents();
+
+      // Overwrite PostProcessUpscalePS shader to inject blue noise texture
+      custom_shaders[0xDBD71D64] = renodx::mods::shader::CustomShader{
+        .crc32 = 0xDBD71D64,
+        .code = __0xDBD71D64,
+        .views = {
+          renodx::mods::shader::ViewBinding{
+            .type = reshade::api::descriptor_type::shader_resource_view,
+            .slot = 0,
+            .space = 20,
+            .get_view = [](reshade::api::command_list* cmd_list) -> reshade::api::resource_view {
+              blue_noise::LoadBlueNoiseTexture(cmd_list->get_device());
+              return blue_noise::g_blue_noise_srv;
+            }
+          }
+        }
+      };
 
       // Load UI toggle hotkey from saved config
       {
@@ -712,7 +660,7 @@ BOOL APIENTRY DllMain(HMODULE h_module, DWORD fdw_reason, LPVOID lpv_reserved) {
       break;
     case DLL_PROCESS_DETACH:
       reshade::unregister_event<reshade::addon_event::present>(OnPresent);
-      frame_capture::UnregisterEvents();
+      blue_noise::UnregisterEvents();
       reshade::unregister_addon(h_module);
       break;
   }

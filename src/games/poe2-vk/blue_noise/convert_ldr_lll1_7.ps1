@@ -1,4 +1,4 @@
-$url = "https://raw.githubusercontent.com/Calinou/free-blue-noise-textures/5fd5473e39c57ee4cd7aad3faa00ae0a97f76ab2/256_256/LDR_LLL1_7.png"
+$url = "https://raw.githubusercontent.com/Calinou/free-blue-noise-textures/5fd5473e39c57ee4cd7aad3faa00ae0a97f76ab2/128_128/LDR_LLL1_7.png"
 
 # Download the file bytes directly into RAM
 $response = Invoke-WebRequest -Uri $url -UseBasicParsing

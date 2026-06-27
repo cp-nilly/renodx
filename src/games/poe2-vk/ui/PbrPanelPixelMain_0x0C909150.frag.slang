@@ -1,7 +1,8 @@
 #include "../common.hlsl"
 
-static float _99 = 0.0f;
+static float _99 = .0f;
 
+[[vk::binding(0, 9)]]
 cbuffer type_cconstants_cb : register(b0, space9)
 {
     float4 cconstants_cb_point_light_positions[64] : packoffset(c0);
@@ -12,32 +13,19 @@ cbuffer type_cconstants_cb : register(b0, space9)
     float cconstants_cb_sdr_scale : packoffset(c129.z);
 };
 
-[[vk::binding(1, 0)]]
-SamplerState SamplerLinearClamp : register(s1, space0);
-[[vk::binding(9, 0)]]
-SamplerState SamplerLinearClampNoBias : register(s9, space0);
-[[vk::binding(12, 0)]]
-SamplerState SamplerLinearWrapOffsetNoBias : register(s12, space0);
-[[vk::binding(0, 5)]]
-TextureCube<float4> specular_cube : register(t0, space5);
-[[vk::binding(1, 5)]]
-TextureCube<float4> diffuse_cube : register(t1, space5);
-[[vk::binding(2, 5)]]
-Texture2D<float4> environment_ggx_tex : register(t2, space5);
-[[vk::binding(3, 5)]]
-Texture2D<float4> albedo_tex : register(t3, space5);
-[[vk::binding(4, 5)]]
-Texture2D<float4> normal_tex : register(t4, space5);
-[[vk::binding(5, 5)]]
-Texture2D<float4> roughness_tex : register(t5, space5);
-[[vk::binding(6, 5)]]
-Texture2D<float4> bent_normal_tex : register(t6, space5);
-[[vk::binding(7, 5)]]
-Texture2D<float4> ao_tex : register(t7, space5);
-[[vk::binding(8, 5)]]
-Texture2D<float4> depth_tex : register(t8, space5);
-[[vk::binding(9, 5)]]
-Texture2D<float4> metal_tex : register(t9, space5);
+[[vk::binding(1, 0)]] SamplerState SamplerLinearClamp : register(s1, space0);
+[[vk::binding(9, 0)]] SamplerState SamplerLinearClampNoBias : register(s9, space0);
+[[vk::binding(12, 0)]] SamplerState SamplerLinearWrapOffsetNoBias : register(s12, space0);
+[[vk::binding(0, 5)]] TextureCube<float4> specular_cube : register(t0, space5);
+[[vk::binding(1, 5)]] TextureCube<float4> diffuse_cube : register(t1, space5);
+[[vk::binding(2, 5)]] Texture2D<float4> environment_ggx_tex : register(t2, space5);
+[[vk::binding(3, 5)]] Texture2D<float4> albedo_tex : register(t3, space5);
+[[vk::binding(4, 5)]] Texture2D<float4> normal_tex : register(t4, space5);
+[[vk::binding(5, 5)]] Texture2D<float4> roughness_tex : register(t5, space5);
+[[vk::binding(6, 5)]] Texture2D<float4> bent_normal_tex : register(t6, space5);
+[[vk::binding(7, 5)]] Texture2D<float4> ao_tex : register(t7, space5);
+[[vk::binding(8, 5)]] Texture2D<float4> depth_tex : register(t8, space5);
+[[vk::binding(9, 5)]] Texture2D<float4> metal_tex : register(t9, space5);
 
 static float4 gl_FragCoord;
 static float2 in_var_TEXCOORD0;
@@ -116,16 +104,7 @@ void frag_main()
     }
     float _308 = _107.w;
     float4 _314 = float4((((((_166.xyz * 3.3299999237060546875f) * _157) * _136) + (((float4((_183.x.xxx + (_159 * _183.y)) * specular_cube.SampleLevel(SamplerLinearClampNoBias, float4(mul(float3(0.0f, 0.0f, -1.0f) - ((_143 * 2.0f) * dot(float3(0.0f, 0.0f, -1.0f), _143)), _161), _196).xyz, _196).xyz, _99) * 3.3299999237060546875f) * 1.0f).xyz * lerp(_136, 1.0f, _153))) + (_220 * 0.0199999995529651641845703125f)) * _308, _308) * in_var_COLOR0;
-    float3 _tonemapped = _314.xyz;
-
-    // RenoDX:
-    if (RENODX_TONE_MAP_TYPE > 0.f) {
-      _tonemapped = renodx::color::bt2020::from::BT709(_tonemapped);
-      _tonemapped = renodx::tonemap::neutwo::MaxChannel(
-          _tonemapped, shader_injection.peak_white_nits / shader_injection.graphics_white_nits, 65.f);
-      _tonemapped = renodx::color::bt709::from::BT2020(_tonemapped);
-    }
-    out_var_SV_TARGET = float4(_tonemapped * cconstants_cb_sdr_scale, _314.w); // will deal with sdr_scale before output since we not injecting all ui shaders
+    out_var_SV_TARGET = ApplyUIProcessing(_314.xyz, _314.w);
 }
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
